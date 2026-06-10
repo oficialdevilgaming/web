@@ -15,6 +15,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '../../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getCDNUrl } from '../../lib/imageUtils';
 
 // Placeholder de número de WhatsApp de la tienda
 const WHATSAPP_NUMBER = '5491155099149';
@@ -61,7 +62,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) =
   };
 
   const displayPrice = product.price;
-  const imageToShow = product.image || (product.images && product.images[0]) || '/default-gaming-product.png';
+  const rawImage = product.image || (product.images && product.images[0]) || '/default-gaming-product.png';
+  const imageToShow = getCDNUrl(rawImage);
 
   return (
     <motion.div

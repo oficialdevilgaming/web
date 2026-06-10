@@ -2,12 +2,19 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'abldpbbhlqsnufmzojgc.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.devilgaming.com.devilgaming.com.ar',
+        port: '',
+        pathname: '/**',
       },
     ],
     formats: ['image/avif', 'image/webp'],

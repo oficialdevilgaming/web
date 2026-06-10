@@ -19,6 +19,7 @@ import {
 import { supabase } from '../../../../lib/supabase';
 import { useCart } from '../../../../context/CartContext';
 import ProductCard from '../../../../components/product/ProductCard';
+import { getCDNUrl } from '../../../../lib/imageUtils';
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -724,7 +725,7 @@ export default function ProductDetailPage() {
                         className={`pd-thumb ${selectedImage === img ? 'active' : ''}`}
                         onClick={() => setSelectedImage(img)}
                       >
-                        <img src={img} alt={`Vista ${idx + 1}`} />
+                        <img src={getCDNUrl(img)} alt={`Vista ${idx + 1}`} />
                       </div>
                     ))}
                   </div>
@@ -737,7 +738,7 @@ export default function ProductDetailPage() {
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={selectedImage}
-                      src={selectedImage}
+                      src={getCDNUrl(selectedImage)}
                       alt={product.name}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}

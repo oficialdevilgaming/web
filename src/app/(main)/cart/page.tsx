@@ -23,6 +23,7 @@ import {
 import NextLink from 'next/link';
 
 import { useCart } from '../../../context/CartContext';
+import { getCDNUrl } from '../../../lib/imageUtils';
 
 const CartPage = () => {
   const { state, dispatch } = useCart();
@@ -97,7 +98,7 @@ const CartPage = () => {
                     <Grid size={{ xs: 4, sm: 2 }}>
                       <Box
                         component="img"
-                        src={item.images[0]}
+                        src={getCDNUrl(item.images[0])}
                         alt={item.name}
                         sx={{ width: '100%', borderRadius: 2, border: '1px solid #eee' }}
                       />

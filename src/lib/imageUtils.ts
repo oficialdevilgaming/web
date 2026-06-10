@@ -33,3 +33,22 @@ export const compressAndConvertToWebP = async (file: File) => {
     return file; // Fallback al original
   }
 };
+
+/**
+ * Converts a Supabase storage URL to the Cloudflare CDN URL.
+ * If the URL is not a Supabase storage URL, it is returned unchanged.
+ */
+export const getCDNUrl = (url: string | null | undefined): string => {
+  if (!url) return '/default-gaming-product.png';
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; // e.g., "https://abldpbbhlqsnufmzojgc.supabase.co"
+  const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;           // e.g., "https://cdn.devilgaming.com"
+  
+  if (supabaseUrl && cdnUrl && url.startsWith(supabaseUrl)) {
+    const searchString = `${supabaseUrl}/storage/v1/object/public`;
+    if (url.startsWith(searchString)) {
+      return url.replace(searchString, cdnUrl);
+    }
+  }
+  return url;
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense, Fragment } from 'react';
+import { useState, useEffect, Suspense, Fragment } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -31,7 +31,7 @@ import {
   Tooltip,
   MenuItem
 } from '@mui/material';
-import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
 import { FormControlLabel, Switch } from '@mui/material';
@@ -70,6 +70,21 @@ const ProductsManagement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [productForDetail, setProductForDetail] = useState<Product | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
+
+  const handleOpenDetail = (product: Product) => {
+    setProductForDetail(product);
+    setActiveImageIndex(0);
+    setDetailDialogOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailDialogOpen(false);
+    setProductForDetail(null);
+  };
 
   const [selectedParentId, setSelectedParentId] = useState<string>('');
 
@@ -222,7 +237,20 @@ const ProductsManagement = () => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const removeExistingImage = (index: number) => {
+  const removeExistingImage = async (index: number) => {
+    const imgUrl = formValues.images[index];
+    // Borrar del bucket de Supabase si la imagen es del bucket 'products'
+    if (imgUrl && imgUrl.includes('/products/')) {
+      const marker = '/storage/v1/object/public/products/';
+      const markerIdx = imgUrl.indexOf(marker);
+      if (markerIdx !== -1) {
+        const filePath = imgUrl.substring(markerIdx + marker.length);
+        supabase.storage.from('products').remove([filePath])
+          .then(({ error }) => {
+            if (error) console.error('Error al borrar imagen del storage:', error);
+          });
+      }
+    }
     setFormValues(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
@@ -324,6 +352,21 @@ const ProductsManagement = () => {
 
   const handleDeleteConfirm = async () => {
     if (!productToDelete) return;
+
+    // 1. Borrar imágenes del bucket de Supabase Storage
+    if (productToDelete.images && productToDelete.images.length > 0) {
+      const marker = '/storage/v1/object/public/products/';
+      const filePaths = productToDelete.images
+        .filter(url => url && url.includes(marker))
+        .map(url => url.substring(url.indexOf(marker) + marker.length));
+
+      if (filePaths.length > 0) {
+        const { error } = await supabase.storage.from('products').remove(filePaths);
+        if (error) console.error('Error al borrar imágenes del storage:', error);
+      }
+    }
+
+    // 2. Borrar el producto de la base de datos
     await supabase.from('products').delete().eq('id', productToDelete.id);
     setDeleteDialogOpen(false);
     setProductToDelete(null);
@@ -472,11 +515,6 @@ const ProductsManagement = () => {
                   <TableRow hover>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar
-                          src={product.images?.[0] || ''}
-                          variant="rounded"
-                          sx={{ width: 40, height: 40, border: '1px solid #eee' }}
-                        />
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 700 }}>{product.name}</Typography>
                           {/* Mobile: botón para expandir detalles */}
@@ -537,10 +575,13 @@ const ProductsManagement = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <IconButton size="small" onClick={() => handleOpen(product)}>
+                        <IconButton size="small" color="primary" onClick={() => handleOpenDetail(product)} title="Ver Detalle">
+                          <Eye size={18} />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleOpen(product)} title="Editar">
                           <Edit2 size={18} />
                         </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDeleteClick(product)}>
+                        <IconButton size="small" color="error" onClick={() => handleDeleteClick(product)} title="Eliminar">
                           <Trash2 size={18} />
                         </IconButton>
                       </Stack>
@@ -715,9 +756,9 @@ const ProductsManagement = () => {
                       helperText="Opcional. Máximo 3 dígitos."
                       inputProps={{ min: 0, max: 999 }}
                     />
-                </Grid>
-
                   </Grid>
+
+                </Grid>
 
 
 
@@ -849,6 +890,261 @@ const ProductsManagement = () => {
           <Button onClick={handleDeleteCancel} color="inherit" sx={{ fontWeight: 600 }}>Cancelar</Button>
           <Button onClick={handleDeleteConfirm} variant="contained" color="error" sx={{ fontWeight: 700 }}>
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Product Detail Modal */}
+      <Dialog open={detailDialogOpen} onClose={handleCloseDetail} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 850 }}>Detalle del Producto</Typography>
+            {productForDetail?.featured && (
+              <Chip
+                icon={<Star size={14} fill="#FFD700" color="#FFD700" />}
+                label="Destacado"
+                size="small"
+                sx={{ bgcolor: 'rgba(255, 215, 0, 0.15)', color: '#b89200', fontWeight: 700, border: '1px solid rgba(255, 215, 0, 0.3)' }}
+              />
+            )}
+          </Box>
+          <IconButton onClick={handleCloseDetail} size="small">
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ py: 3 }}>
+          {productForDetail && (
+            <Grid container spacing={4}>
+              {/* Left Column: Images */}
+              <Grid size={{ xs: 12, md: 5 }}>
+                <Stack spacing={2}>
+                  {productForDetail.images && productForDetail.images.length > 0 ? (
+                    <>
+                      {/* Main Image */}
+                      <Box sx={{
+                        position: 'relative',
+                        aspectRatio: '1/1',
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                        border: '1px solid rgba(0,0,0,0.05)',
+                        bgcolor: '#fafafa'
+                      }}>
+                        <Box
+                          component="img"
+                          src={productForDetail.images[activeImageIndex] || productForDetail.images[0]}
+                          alt={productForDetail.name}
+                          sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                        {productForDetail.discount && productForDetail.discount > 0 ? (
+                          <Chip
+                            label={`${productForDetail.discount}% OFF`}
+                            color="error"
+                            size="small"
+                            sx={{ position: 'absolute', top: 12, left: 12, fontWeight: 800, borderRadius: 1.5, px: 1 }}
+                          />
+                        ) : null}
+                      </Box>
+                      {/* Thumbnails */}
+                      {productForDetail.images.length > 1 && (
+                        <Grid container spacing={1}>
+                          {productForDetail.images.map((img, idx) => (
+                            <Grid size={4} key={idx}>
+                              <Box
+                                onClick={() => setActiveImageIndex(idx)}
+                                sx={{
+                                  position: 'relative',
+                                  aspectRatio: '1/1',
+                                  borderRadius: 2,
+                                  overflow: 'hidden',
+                                  cursor: 'pointer',
+                                  border: '2px solid',
+                                  borderColor: activeImageIndex === idx ? 'primary.main' : 'rgba(0,0,0,0.06)',
+                                  transition: 'all 0.2s',
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    transform: 'scale(1.02)'
+                                  }
+                                }}
+                              >
+                                <Box
+                                  component="img"
+                                  src={img}
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      )}
+                    </>
+                  ) : (
+                    <Box sx={{
+                      aspectRatio: '1/1',
+                      borderRadius: 3,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'rgba(0,0,0,0.02)',
+                      border: '1px dashed rgba(0,0,0,0.1)'
+                    }}>
+                      <Box sx={{ opacity: 0.3, mb: 1, fontSize: '2rem' }}>📦</Box>
+                      <Typography variant="body2" color="text.secondary">Sin imágenes</Typography>
+                    </Box>
+                  )}
+                </Stack>
+              </Grid>
+
+              {/* Right Column: Info */}
+              <Grid size={{ xs: 12, md: 7 }}>
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 850, mb: 1, color: '#111', lineHeight: 1.2 }}>
+                      {productForDetail.name}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ gap: 1 }}>
+                      <Chip
+                        label={productForDetail.category?.name || 'Sin Categoría'}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontWeight: 600 }}
+                      />
+                      {productForDetail.category?.parent?.name && (
+                        <Chip
+                          label={`Padre: ${productForDetail.category.parent.name}`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontWeight: 500, color: 'text.secondary' }}
+                        />
+                      )}
+                    </Stack>
+                  </Box>
+
+                  {/* Financial & Stock Metrics Panel */}
+                  <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#fbfbfb', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <Grid container spacing={3}>
+                      {/* Price Info */}
+                      <Grid size={{ xs: 6, sm: 6 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                          Precio de Venta
+                        </Typography>
+                        {productForDetail.discount && productForDetail.discount > 0 ? (
+                          <Box>
+                            <Typography variant="h5" sx={{ fontWeight: 800, color: 'error.main' }}>
+                              ${(productForDetail.price * (1 - productForDetail.discount / 100)).toLocaleString('es-ES')}
+                            </Typography>
+                            <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', display: 'block' }}>
+                              Original: ${productForDetail.price.toLocaleString('es-ES')}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                            ${productForDetail.price.toLocaleString('es-ES')}
+                          </Typography>
+                        )}
+                      </Grid>
+
+                      {/* Cost Price */}
+                      <Grid size={{ xs: 6, sm: 6 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                          Costo Base
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                          ${productForDetail.cost_price != null ? productForDetail.cost_price.toLocaleString('es-ES') : '0'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Precio de compra
+                        </Typography>
+                      </Grid>
+
+                      {/* Margin / Profitability */}
+                      {productForDetail.cost_price != null && productForDetail.cost_price > 0 && (
+                        <Grid size={{ xs: 6, sm: 6 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                            Ganancia / Margen
+                          </Typography>
+                          {(() => {
+                            const sellPrice = productForDetail.discount && productForDetail.discount > 0
+                              ? productForDetail.price * (1 - productForDetail.discount / 100)
+                              : productForDetail.price;
+                            const profitAmt = sellPrice - productForDetail.cost_price;
+                            const profitPercent = (profitAmt / productForDetail.cost_price) * 100;
+                            const isNegative = profitAmt < 0;
+                            return (
+                              <Box>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: isNegative ? 'error.main' : 'success.main' }}>
+                                  {isNegative ? '-' : '+'}${Math.abs(profitAmt).toLocaleString('es-ES')}
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 750, color: isNegative ? 'error.main' : 'success.main' }}>
+                                  {profitPercent.toFixed(1)}% {isNegative ? 'pérdida' : 'retorno'}
+                                </Typography>
+                              </Box>
+                            );
+                          })()}
+                        </Grid>
+                      )}
+
+                      {/* Stock Info */}
+                      <Grid size={{ xs: 6, sm: 6 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                          Stock y Estado
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+                          {productForDetail.stock} unid.
+                        </Typography>
+                        <Chip
+                          label={
+                            productForDetail.stock === 0 ? 'Sin Stock' :
+                              productForDetail.stock < 5 ? 'Bajo Stock' :
+                                'En Stock'
+                          }
+                          size="small"
+                          color={
+                            productForDetail.stock === 0 ? 'error' :
+                              productForDetail.stock < 5 ? 'warning' :
+                                'success'
+                          }
+                          sx={{ fontWeight: 700, height: 22 }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Description */}
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'text.secondary' }}>
+                      Descripción
+                    </Typography>
+                    {productForDetail.description ? (
+                      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#fff', maxHeight: 200, overflowY: 'auto' }}>
+                        <Typography
+                          variant="body2"
+                          color="text.primary"
+                          component="div"
+                          dangerouslySetInnerHTML={{ __html: productForDetail.description }}
+                          sx={{
+                            '& p': { m: 0, mb: 1 },
+                            '& ul, & ol': { pl: 2, m: 0, mb: 1 },
+                            '& h1, & h2, & h3': { m: 0, mb: 1, fontWeight: 700 },
+                          }}
+                        />
+                      </Paper>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        Sin descripción provista.
+                      </Typography>
+                    )}
+                  </Box>
+                </Stack>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, bgcolor: '#fafafa', gap: 1 }}>
+          <Button onClick={handleCloseDetail} variant="contained" color="primary" sx={{ fontWeight: 700, px: 4 }}>
+            Cerrar
           </Button>
         </DialogActions>
       </Dialog>
