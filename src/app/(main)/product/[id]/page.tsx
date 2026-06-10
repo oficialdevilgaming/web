@@ -266,26 +266,18 @@ const css = `
   /* Divider */
   .pd-rule { border: none; border-top: 1px solid #e8e8e8; margin: 24px 0; }
 
-  /* Stock */
-  .pd-stock {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+  .pd-no-stock-label {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.06);
+    padding: 6px 12px;
+    border-radius: 6px;
     text-transform: uppercase;
-    margin-bottom: 24px;
+    letter-spacing: 0.05em;
   }
-  .pd-stock-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .pd-stock-dot.in { background: #22c55e; }
-  .pd-stock-dot.out { background: #ef4444; }
-  .stock-in { color: #22c55e; }
-  .stock-out { color: #ef4444; }
 
   /* Qty row */
   .pd-qty-row {
@@ -785,15 +777,11 @@ export default function ProductDetailPage() {
 
               <hr className="pd-rule" />
 
-              {/* Stock */}
-              <div className="pd-stock">
-                <div className={`pd-stock-dot ${remainingStock > 0 ? 'in' : 'out'}`} />
-                {remainingStock > 0 ? (
-                  <span className="stock-in">{remainingStock} disponibles</span>
-                ) : (
-                  <span className="stock-out">Sin stock</span>
-                )}
-              </div>
+              {remainingStock <= 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <span className="pd-no-stock-label">Sin stock</span>
+                </div>
+              )}
 
               {/* Actions */}
               {product.stock > 0 ? (
