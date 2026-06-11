@@ -28,6 +28,7 @@ import {
 } from '@mui/material';
 import { Plus, Edit2, Trash2, Folder, Search, PlusCircle, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useAlert } from '../../../context/AlertContext';
 
 type Category = {
   id: string;
@@ -132,6 +133,7 @@ const CategoryRow = ({ category, childrenCategories, onEdit, onDelete, onAddSub 
 };
 
 const CategoriesManagement = () => {
+  const { showAlert } = useAlert();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -223,13 +225,13 @@ const CategoriesManagement = () => {
         .update(dataToSave)
         .eq('id', editingCategory.id);
 
-      if (error) alert('Error al actualizar categoría');
+      if (error) showAlert('Error al actualizar categoría');
     } else {
       const { error } = await supabase
         .from('categories')
         .insert([dataToSave]);
 
-      if (error) alert('Error al crear categoría');
+      if (error) showAlert('Error al crear categoría');
     }
 
     fetchCategories();
@@ -261,7 +263,7 @@ const CategoriesManagement = () => {
       .limit(1);
 
     if (productsError) {
-      alert('Error al verificar productos asociados');
+      showAlert('Error al verificar productos asociados');
       return;
     }
 
@@ -278,7 +280,7 @@ const CategoriesManagement = () => {
       .eq('id', categoryToDelete.id);
 
     if (error) {
-      alert('Error al eliminar categoría');
+      showAlert('Error al eliminar categoría');
     } else {
       fetchCategories();
     }

@@ -34,6 +34,7 @@ import {
 import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
+import { useAlert } from '../../../context/AlertContext';
 import { FormControlLabel, Switch } from '@mui/material';
 import { compressAndConvertToWebP } from '../../../lib/imageUtils';
 import RichTextEditor from '../../../components/admin/RichTextEditor';
@@ -60,6 +61,7 @@ type Category = {
 };
 
 const ProductsManagement = () => {
+  const { showAlert } = useAlert();
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -310,7 +312,7 @@ const ProductsManagement = () => {
     }
 
     if (formValues.cost_price === '' || formValues.cost_price === null || formValues.cost_price === undefined) {
-      alert('El campo Costo base es obligatorio.');
+      showAlert('El campo Costo base es obligatorio.');
       setUploadingFiles(false);
       return;
     }
@@ -339,7 +341,7 @@ const ProductsManagement = () => {
       handleClose();
     } catch (err: any) {
       console.error('Error guardando producto:', err);
-      alert('Error al guardar el producto: ' + (err.message || JSON.stringify(err)));
+      showAlert('Error al guardar el producto: ' + (err.message || JSON.stringify(err)));
     } finally {
       setUploadingFiles(false);
     }
