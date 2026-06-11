@@ -534,6 +534,22 @@ const css = `
     margin: 0;
   }
 
+  /* Pulse Animation & Skeleton */
+  @keyframes pd-pulse {
+    0% { background-color: #f5f5f5; }
+    50% { background-color: #e8e8e8; }
+    100% { background-color: #f5f5f5; }
+  }
+  .pd-skeleton-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    animation: pd-pulse 1.5s infinite ease-in-out;
+    z-index: 1;
+  }
+
   /* Fade in */
   @keyframes pd-fade-up {
     from { opacity: 0; transform: translateY(16px); }
@@ -551,9 +567,14 @@ export default function ProductDetailPage() {
   const [related, setRelated] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState('');
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [selectedImage]);
 
   useEffect(() => {
     (async () => {
@@ -574,7 +595,7 @@ export default function ProductDetailPage() {
 
         const { data: rel } = await supabase
           .from('products')
-          .select('*, category:categories(name)')
+          .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
           .eq('category_id', pData.category_id)
           .neq('id', id)
           .limit(4);
@@ -725,17 +746,20 @@ export default function ProductDetailPage() {
 
                 <div className="pd-main-img-box">
                   {product.discount > 0 && (
-                    <div className="pd-img-flag">−{product.discount}%</div>
+                    <div className="pd-img-flag" style={{ zIndex: 3 }}>−{product.discount}%</div>
                   )}
+                  {!imageLoaded && <div className="pd-skeleton-bg" />}
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={selectedImage}
                       src={getCDNUrl(selectedImage)}
                       alt={product.name}
+                      style={{ zIndex: 2 }}
                       initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      animate={{ opacity: imageLoaded ? 1 : 0 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.18 }}
+                      onLoad={() => setImageLoaded(true)}
                     />
                   </AnimatePresence>
                 </div>

@@ -155,24 +155,28 @@ const ProductsManagement = () => {
         .order('created_at', { ascending: false })
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1);
 
-      // Categories (stays as is or we could optimize too, but usually less rows)
-      const { data: catsData, error: cError } = await supabase
-        .from('categories')
-        .select('*, parent:parent_id(name)')
-        .order('name');
-
       if (pError) throw pError;
-      if (cError) throw cError;
 
       setAllProducts(productsData || []);
       setTotalCount(count || 0);
-      if (catsData) setDbCategories(catsData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Fetch categories once on mount (independent of pagination/filters)
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data: catsData, error: cError } = await supabase
+        .from('categories')
+        .select('id, name, parent_id, parent:parent_id(name)')
+        .order('name');
+      if (!cError && catsData) setDbCategories(catsData as unknown as Category[]);
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const stockParam = searchParams.get('filter');
