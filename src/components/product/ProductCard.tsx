@@ -8,6 +8,7 @@ import {
   Button,
   Box,
   Chip,
+  Skeleton,
 } from '@mui/material';
 import { ShoppingCart, Check } from 'lucide-react';
 import Link from 'next/link';
@@ -28,6 +29,7 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) => {
   const { state, dispatch } = useCart();
   const [isAdded, setIsAdded] = React.useState(false);
+  const [imageLoaded, setImageLoaded] = React.useState(false);
 
   const isOutOfStock = product.stock === 0;
 
@@ -99,6 +101,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) =
           overflow: 'hidden',
           borderBottom: '1.5px solid #000000',
         }}>
+          {!imageLoaded && (
+            <Skeleton
+              variant="rectangular"
+              animation="wave"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                bgcolor: 'rgba(0,0,0,0.06)',
+                zIndex: 1
+              }}
+            />
+          )}
           <Image
             src={imageToShow}
             alt={product.name}
@@ -106,9 +123,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) =
             sizes={layout === 'list' ? "(max-width: 600px) 100vw, 30vw" : "(max-width: 600px) 50vw, (max-width: 1200px) 33vw, 25vw"}
             style={{
               objectFit: 'cover',
-              transition: 'transform 0.5s ease',
+              transition: 'transform 0.5s ease, opacity 0.3s ease-in-out',
+              opacity: imageLoaded ? 1 : 0,
               filter: isOutOfStock ? 'grayscale(40%)' : 'none',
+              zIndex: 2
             }}
+            onLoad={() => setImageLoaded(true)}
             onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           />

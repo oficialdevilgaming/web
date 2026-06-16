@@ -85,7 +85,7 @@ const ShopContent = () => {
     try {
       let query = supabase
         .from('products')
-        .select('*, category:categories(name)', { count: 'exact' });
+        .select('id, name, price, discount, stock, images, category_id, category:categories(name)', { count: 'exact' });
 
       // Apply Filters
       if (searchQuery) {
@@ -160,7 +160,7 @@ const ShopContent = () => {
   useEffect(() => {
     const fetchCats = async () => {
       try {
-        const { data } = await supabase.from('categories').select('*');
+        const { data } = await supabase.from('categories').select('id, name, parent_id');
         if (data) setCategories(data);
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -255,7 +255,7 @@ const ShopContent = () => {
         <Grid container spacing={4}>
           {/* Sidebar */}
           <Grid size={{ xs: 12, md: 3, lg: 2.5 }} sx={{ display: { xs: 'none', md: 'block' } }}>
-            <CategorySidebar />
+            <CategorySidebar categoriesList={categories} />
           </Grid>
 
           {/* Product Grid */}
@@ -657,7 +657,7 @@ const ShopContent = () => {
             <Filter size={20} />
           </IconButton>
         </Box>
-        <CategorySidebar onFilterChange={() => setMobileFiltersOpen(false)} />
+        <CategorySidebar categoriesList={categories} onFilterChange={() => setMobileFiltersOpen(false)} />
       </Drawer>
     </Box>
   );

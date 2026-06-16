@@ -6,6 +6,10 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 export const metadata: Metadata = {
   title: "Devil Gaming | Elite Hardware & Gaming Setup",
   description: "Dominá tu mundo con el estándar de élite en hardware. PCs armadas, componentes premium y periféricos de alto rendimiento.",
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png'
+  },
 };
 
 export default function RootLayout({

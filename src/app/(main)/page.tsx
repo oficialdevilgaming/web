@@ -380,7 +380,7 @@ const HomePage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(name)')
+        .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
         .eq('featured', true)
         .limit(8);
 

@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import theme from '../theme/theme';
 import { AuthProvider } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
+import { AlertProvider } from '../context/AlertContext';
 import { useState, useEffect } from 'react';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       {mounted && <CssBaseline />}
       <AuthProvider>
         <CartProvider>
-          {children}
+          <AlertProvider>
+            {children}
+          </AlertProvider>
         </CartProvider>
       </AuthProvider>
     </ThemeProvider>

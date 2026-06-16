@@ -34,6 +34,7 @@ import {
 import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
+import { useAlert } from '../../../context/AlertContext';
 import { FormControlLabel, Switch } from '@mui/material';
 import { compressAndConvertToWebP } from '../../../lib/imageUtils';
 import RichTextEditor from '../../../components/admin/RichTextEditor';
@@ -60,6 +61,7 @@ type Category = {
 };
 
 const ProductsManagement = () => {
+  const { showAlert } = useAlert();
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -153,24 +155,28 @@ const ProductsManagement = () => {
         .order('created_at', { ascending: false })
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1);
 
-      // Categories (stays as is or we could optimize too, but usually less rows)
-      const { data: catsData, error: cError } = await supabase
-        .from('categories')
-        .select('*, parent:parent_id(name)')
-        .order('name');
-
       if (pError) throw pError;
-      if (cError) throw cError;
 
       setAllProducts(productsData || []);
       setTotalCount(count || 0);
-      if (catsData) setDbCategories(catsData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Fetch categories once on mount (independent of pagination/filters)
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data: catsData, error: cError } = await supabase
+        .from('categories')
+        .select('id, name, parent_id, parent:parent_id(name)')
+        .order('name');
+      if (!cError && catsData) setDbCategories(catsData as unknown as Category[]);
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const stockParam = searchParams.get('filter');
@@ -310,7 +316,7 @@ const ProductsManagement = () => {
     }
 
     if (formValues.cost_price === '' || formValues.cost_price === null || formValues.cost_price === undefined) {
-      alert('El campo Costo base es obligatorio.');
+      showAlert('El campo Costo base es obligatorio.');
       setUploadingFiles(false);
       return;
     }
@@ -339,7 +345,7 @@ const ProductsManagement = () => {
       handleClose();
     } catch (err: any) {
       console.error('Error guardando producto:', err);
-      alert('Error al guardar el producto: ' + (err.message || JSON.stringify(err)));
+      showAlert('Error al guardar el producto: ' + (err.message || JSON.stringify(err)));
     } finally {
       setUploadingFiles(false);
     }
