@@ -19,6 +19,7 @@ import {
 import { supabase } from '../../../../lib/supabase';
 import { useCart } from '../../../../context/CartContext';
 import ProductCard from '../../../../components/product/ProductCard';
+import { getCDNUrl } from '../../../../lib/imageUtils';
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -265,26 +266,18 @@ const css = `
   /* Divider */
   .pd-rule { border: none; border-top: 1px solid #e8e8e8; margin: 24px 0; }
 
-  /* Stock */
-  .pd-stock {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+  .pd-no-stock-label {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.06);
+    padding: 6px 12px;
+    border-radius: 6px;
     text-transform: uppercase;
-    margin-bottom: 24px;
+    letter-spacing: 0.05em;
   }
-  .pd-stock-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .pd-stock-dot.in { background: #22c55e; }
-  .pd-stock-dot.out { background: #ef4444; }
-  .stock-in { color: #22c55e; }
-  .stock-out { color: #ef4444; }
 
   /* Qty row */
   .pd-qty-row {
@@ -541,6 +534,22 @@ const css = `
     margin: 0;
   }
 
+  /* Pulse Animation & Skeleton */
+  @keyframes pd-pulse {
+    0% { background-color: #f5f5f5; }
+    50% { background-color: #e8e8e8; }
+    100% { background-color: #f5f5f5; }
+  }
+  .pd-skeleton-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    animation: pd-pulse 1.5s infinite ease-in-out;
+    z-index: 1;
+  }
+
   /* Fade in */
   @keyframes pd-fade-up {
     from { opacity: 0; transform: translateY(16px); }
@@ -558,9 +567,14 @@ export default function ProductDetailPage() {
   const [related, setRelated] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState('');
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [selectedImage]);
 
   useEffect(() => {
     (async () => {
@@ -581,7 +595,7 @@ export default function ProductDetailPage() {
 
         const { data: rel } = await supabase
           .from('products')
-          .select('*, category:categories(name)')
+          .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
           .eq('category_id', pData.category_id)
           .neq('id', id)
           .limit(4);
@@ -724,7 +738,7 @@ export default function ProductDetailPage() {
                         className={`pd-thumb ${selectedImage === img ? 'active' : ''}`}
                         onClick={() => setSelectedImage(img)}
                       >
-                        <img src={img} alt={`Vista ${idx + 1}`} />
+                        <img src={getCDNUrl(img)} alt={`Vista ${idx + 1}`} />
                       </div>
                     ))}
                   </div>
@@ -732,17 +746,20 @@ export default function ProductDetailPage() {
 
                 <div className="pd-main-img-box">
                   {product.discount > 0 && (
-                    <div className="pd-img-flag">−{product.discount}%</div>
+                    <div className="pd-img-flag" style={{ zIndex: 3 }}>−{product.discount}%</div>
                   )}
+                  {!imageLoaded && <div className="pd-skeleton-bg" />}
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={selectedImage}
-                      src={selectedImage}
+                      src={getCDNUrl(selectedImage)}
                       alt={product.name}
+                      style={{ zIndex: 2 }}
                       initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      animate={{ opacity: imageLoaded ? 1 : 0 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.18 }}
+                      onLoad={() => setImageLoaded(true)}
                     />
                   </AnimatePresence>
                 </div>
@@ -784,15 +801,11 @@ export default function ProductDetailPage() {
 
               <hr className="pd-rule" />
 
-              {/* Stock */}
-              <div className="pd-stock">
-                <div className={`pd-stock-dot ${remainingStock > 0 ? 'in' : 'out'}`} />
-                {remainingStock > 0 ? (
-                  <span className="stock-in">{remainingStock} disponibles</span>
-                ) : (
-                  <span className="stock-out">Sin stock</span>
-                )}
-              </div>
+              {remainingStock <= 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <span className="pd-no-stock-label">Sin stock</span>
+                </div>
+              )}
 
               {/* Actions */}
               {product.stock > 0 ? (

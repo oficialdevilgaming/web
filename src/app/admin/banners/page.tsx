@@ -31,6 +31,7 @@ import {
 import { Plus, Edit2, Trash2, Search, X, CheckCircle, ExternalLink, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { compressAndConvertToWebP } from '../../../lib/imageUtils';
+import { useAlert } from '../../../context/AlertContext';
 
 type HeroBanner = {
   id: string;
@@ -45,6 +46,7 @@ type HeroBanner = {
 };
 
 const BannersManagement = () => {
+  const { showAlert } = useAlert();
   const [banners, setBanners] = useState<HeroBanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -160,7 +162,7 @@ const BannersManagement = () => {
       setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, is_active: !b.is_active } : b));
     } catch (error) {
       console.error('Error toggling banner status:', error);
-      alert('Error al cambiar el estado del banner.');
+      showAlert('Error al cambiar el estado del banner.');
     }
   };
 
@@ -253,7 +255,7 @@ const BannersManagement = () => {
       handleClose();
     } catch (err: any) {
       console.error('Error saving banner:', err);
-      alert('Error al guardar el banner: ' + (err.message || JSON.stringify(err)));
+      showAlert('Error al guardar el banner: ' + (err.message || JSON.stringify(err)));
     } finally {
       setUploading(false);
     }
@@ -297,7 +299,7 @@ const BannersManagement = () => {
       setBannerToDelete(null);
     } catch (err: any) {
       console.error('Error deleting banner:', err);
-      alert('Error al eliminar banner: ' + (err.message || JSON.stringify(err)));
+      showAlert('Error al eliminar banner: ' + (err.message || JSON.stringify(err)));
     }
   };
 

@@ -11,6 +11,7 @@ import 'swiper/css/pagination';
 import { supabase } from '../../lib/supabase';
 import ProductCard from '../../components/product/ProductCard';
 import GoogleReviews from '../../components/layout/GoogleReviews';
+import { getCDNUrl } from '../../lib/imageUtils';
 import { ArrowRight, Truck, ShieldCheck, Zap, Headphones, Cpu, Monitor, ChevronLeft, ChevronRight, RefreshCcw, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -202,7 +203,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
               {/* Background image using img tag for reliability */}
               <Box
                 component="img"
-                src={banner.image_url}
+                src={getCDNUrl(banner.image_url)}
                 alt={banner.title || 'Banner'}
                 sx={{
                   position: 'absolute',
@@ -379,7 +380,7 @@ const HomePage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(name)')
+        .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
         .eq('featured', true)
         .limit(8);
 

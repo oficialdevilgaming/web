@@ -26,9 +26,10 @@ import { supabase } from '../../lib/supabase';
 
 interface CategorySidebarProps {
   onFilterChange?: () => void;
+  categoriesList?: any[];
 }
 
-const CategorySidebar: React.FC<CategorySidebarProps> = ({ onFilterChange }) => {
+const CategorySidebar: React.FC<CategorySidebarProps> = ({ onFilterChange, categoriesList }) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -46,12 +47,16 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({ onFilterChange }) => 
     setPriceRange([minPrice, maxPrice]);
   }, [minPrice, maxPrice]);
 
-  // Fetch categories only once on mount
+  // Use provided categories list if available; otherwise fetch once on mount
   useEffect(() => {
+    if (categoriesList) {
+      setCategories(categoriesList);
+      return;
+    }
     const fetchCategories = async () => {
       const { data, error } = await supabase
         .from('categories')
-        .select('*')
+        .select('id, name, parent_id')
         .order('name');
 
       if (!error && data) {
@@ -60,7 +65,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({ onFilterChange }) => 
     };
 
     fetchCategories();
-  }, []);
+  }, [categoriesList]);
 
   // Auto-expand parent category when selection changes
   useEffect(() => {

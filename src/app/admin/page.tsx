@@ -107,8 +107,8 @@ const Dashboard = () => {
         // Optimizamos: No traemos TODOS los productos, solo los necesarios para las métricas
         // y un count aparte para el stock bajo.
         const [ordRes, catRes, lowStockRes] = await Promise.all([
-          supabase.from('orders').select('*').gte('created_at', historicalDate.toISOString()).order('created_at', { ascending: true }),
-          supabase.from('categories').select('*'),
+          supabase.from('orders').select('id, created_at, status, total, items, customer_name, delivered_at').gte('created_at', historicalDate.toISOString()).order('created_at', { ascending: true }),
+          supabase.from('categories').select('id, name'),
           supabase.from('products').select('*', { count: 'exact', head: true }).lt('stock', 5)
         ]);
 

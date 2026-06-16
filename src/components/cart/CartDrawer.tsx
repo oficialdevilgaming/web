@@ -17,6 +17,7 @@ import {
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import Link from 'next/link';
+import { getCDNUrl } from '../../lib/imageUtils';
 
 
 interface CartDrawerProps {
@@ -84,7 +85,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, onClose }) => {
                   <ListItem alignItems="flex-start" sx={{ px: 1, py: 2 }}>
                     <ListItemAvatar sx={{ mr: 2 }}>
                       <Avatar
-                        src={item.images?.[0]}
+                        src={getCDNUrl(item.images?.[0])}
                         variant="rounded"
                         sx={{ width: 80, height: 80, bgcolor: '#f5f5f5', border: '1px solid rgba(0,0,0,0.05)' }}
                       />

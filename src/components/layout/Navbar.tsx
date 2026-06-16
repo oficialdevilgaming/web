@@ -55,6 +55,7 @@ import { alpha, styled } from '@mui/material/styles';
 import { supabase } from '../../lib/supabase';
 import CartDrawer from '../cart/CartDrawer';
 import { useAuth } from '../../context/AuthContext';
+import { getCDNUrl } from '../../lib/imageUtils';
 
 const SearchWrapper = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -367,7 +368,7 @@ const Navbar = () => {
                                 >
                                   <ListItemAvatar>
                                     <Avatar
-                                      src={product.images?.[0] || '/default-gaming-product.png'}
+                                      src={getCDNUrl(product.images?.[0])}
                                       variant="rounded"
                                       sx={{ width: 40, height: 40, bgcolor: '#f4f4f4', objectFit: 'contain' }}
                                     />
