@@ -527,55 +527,55 @@ const HomePage = () => {
       </Container>
 
       {/* Featured Carousel */}
-      <Box sx={{ py: 2.5 }}>
-        <Container maxWidth="xl">
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-end' }, mb: 1, gap: { xs: .5, md: 0 } }}>
-            <Box>
-              <Typography variant="h2" sx={{
-                fontWeight: 900,
-                background: 'linear-gradient(90deg, #ff0000, #cc0000)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                display: 'inline-block',
-                textShadow: '0 0 20px rgba(255,0,0,0.15)',
-                fontSize: { xs: '1.5rem', sm: '2rem', md: '3rem' }
-              }}>
-                Productos Destacados
-              </Typography>
+      {(!loading && featuredProducts.length === 0) ? null : (
+        <Box sx={{ py: 2.5 }}>
+          <Container maxWidth="xl">
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-end' }, mb: 1, gap: { xs: .5, md: 0 } }}>
+              <Box>
+                <Typography variant="h2" sx={{
+                  fontWeight: 900,
+                  background: 'linear-gradient(90deg, #ff0000, #cc0000)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  display: 'inline-block',
+                  textShadow: '0 0 20px rgba(255,0,0,0.15)',
+                  fontSize: { xs: '1.5rem', sm: '2rem', md: '3rem' }
+                }}>
+                  Productos Destacados
+                </Typography>
+              </Box>
+              <Button component={Link} href="/shop?featured=true" endIcon={<ArrowRight size={20} />} sx={{ fontWeight: 700 }}>
+                Ver Todos
+              </Button>
             </Box>
-            <Button component={Link} href="/shop?featured=true" endIcon={<ArrowRight size={20} />} sx={{ fontWeight: 700 }}>
-              Ver Todos
-            </Button>
-          </Box>
 
-          {loading ? (
-            <Box sx={{ textAlign: 'center', py: 5 }}><CircularProgress /></Box>
-          ) : featuredProducts.length > 0 ? (
-            <Swiper
-              modules={[Navigation, Pagination, Autoplay]}
-              spaceBetween={30}
-              slidesPerView={1}
-              pagination={{ clickable: true }}
-              autoplay={{ delay: 5000 }}
-              breakpoints={{
-                640: { slidesPerView: 2 },
-                960: { slidesPerView: 3 },
-                1200: { slidesPerView: 4 },
-                1536: { slidesPerView: 5 },
-              }}
-              style={{ padding: '20px 5px 50px 5px' }}
-            >
-              {featuredProducts.map((product) => (
-                <SwiperSlide key={product.id}>
-                  <ProductCard product={product} />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          ) : (
-            <Typography variant="body1" align="center" color="text.secondary">Añade productos en el panel de administrador para verlos aquí.</Typography>
-          )}
-        </Container>
-      </Box>
+            {loading ? (
+              <Box sx={{ textAlign: 'center', py: 5 }}><CircularProgress /></Box>
+            ) : (
+              <Swiper
+                modules={[Navigation, Pagination, Autoplay]}
+                spaceBetween={30}
+                slidesPerView={1}
+                pagination={{ clickable: true }}
+                autoplay={{ delay: 5000 }}
+                breakpoints={{
+                  640: { slidesPerView: 2 },
+                  960: { slidesPerView: 3 },
+                  1200: { slidesPerView: 4 },
+                  1536: { slidesPerView: 5 },
+                }}
+                style={{ padding: '20px 5px 50px 5px' }}
+              >
+                {featuredProducts.map((product) => (
+                  <SwiperSlide key={product.id}>
+                    <ProductCard product={product} />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            )}
+          </Container>
+        </Box>
+      )}
 
       <GoogleReviews />
 
