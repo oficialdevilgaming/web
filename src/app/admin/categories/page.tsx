@@ -360,7 +360,9 @@ const CategoriesManagement = () => {
               ) : hierarchy.roots.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
-                    No se encontraron categorías.
+                    <Typography variant="body2" color="text.secondary">
+                      No hay categorías.
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (

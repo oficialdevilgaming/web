@@ -66,7 +66,7 @@ type Product = { id: string; name: string; price: number; stock: number; categor
 type Category = { id: string; name: string; parent_id?: string | null };
 
 // ─── Wizard para crear pedido ─────────────────────────────────────────────────
-const STEPS = ['Seleccionar Productos', 'Datos de Contacto', 'Confirmar Pedido'];
+const STEPS = ['Productos', 'Contacto', 'Confirmar Pedido'];
 
 interface CreateOrderWizardProps {
   open: boolean;
@@ -310,15 +310,19 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                 <CheckCircle size={16} /> Carrito ({cartItems.length} items)
               </Typography>
               <Box sx={{
-                height: 480,
+                height: 'auto',
+                maxHeight: { xs: 320, md: 480 },
                 display: 'flex',
                 flexDirection: 'column',
                 border: '1px solid rgba(0,0,0,0.08)',
                 borderRadius: 2,
-                bgcolor: 'rgba(0,0,0,0.01)'
+                bgcolor: 'rgba(0,0,0,0.01)',
+                overflow: 'hidden'
               }}>
                 <Box sx={{
                   flexGrow: 1,
+                  flexShrink: 1,
+                  minHeight: 0,
                   overflowY: 'auto',
                   p: 1.5,
                   '&::-webkit-scrollbar': { width: '6px' },
@@ -448,48 +452,106 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         {activeStep === 2 && (
           <Stack spacing={3} sx={{ py: 2 }}>
             <Box sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', bgcolor: 'rgba(0,0,0,0.01)' }}>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Cliente</Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Nombre</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactName}</Typography>
-                </Box>
-                <Box sx={{ ml: 2, p: 1, borderRadius: 2, bgcolor: '#25d366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Phone size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Teléfono</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactPhone}</Typography>
-                </Box>
-                {contactEmail && (
-                  <>
-                    <Box sx={{ ml: 2, p: 1, borderRadius: 2, bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Mail size={18} />
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2, fontWeight: 700, letterSpacing: '0.05em' }}>
+                INFORMACIÓN DEL CLIENTE
+              </Typography>
+              <Grid container spacing={2.5}>
+                {/* Nombre */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: '#cc0000',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <User size={18} />
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Email</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactEmail}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Nombre</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactName}</Typography>
                     </Box>
-                  </>
+                  </Stack>
+                </Grid>
+
+                {/* Teléfono */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: '#25d366',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Phone size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Teléfono</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactPhone}</Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
+
+                {/* Email */}
+                {contactEmail && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        bgcolor: '#3f51b5',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Mail size={18} />
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Email</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactEmail}</Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
                 )}
-              </Stack>
 
-              <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
-
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
-                  </Typography>
-                </Box>
-              </Stack>
+                {/* Dirección */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0,0,0,0.05)',
+                      color: 'text.secondary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <MapPin size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Dirección de Entrega</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
+              </Grid>
             </Box>
 
             <Divider />
@@ -1300,6 +1362,14 @@ const OrdersManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={8} align="center">Cargando...</TableCell></TableRow>
+              ) : orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No hay pedidos.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : orders.map((order) => (
                 <Fragment key={order.id}>
                   <TableRow hover>
@@ -1502,7 +1572,7 @@ const OrdersManagement = () => {
                 {/* Nombre */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <User size={18} />
                     </Box>
                     <Box>
@@ -1515,7 +1585,7 @@ const OrdersManagement = () => {
                 {/* Teléfono + botón WhatsApp */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#25d366', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#25d366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Phone size={18} />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
@@ -1544,7 +1614,7 @@ const OrdersManagement = () => {
                 {selectedOrder?.email && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Stack direction="row" spacing={2} alignItems="center">
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#3f51b5', color: 'white', display: 'flex' }}>
+                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Mail size={18} />
                       </Box>
                       <Box sx={{ flexGrow: 1 }}>
@@ -1557,7 +1627,7 @@ const OrdersManagement = () => {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#ff9800', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#ff9800', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Clock size={18} />
                     </Box>
                     <Box>
@@ -1573,7 +1643,7 @@ const OrdersManagement = () => {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: selectedOrder?.delivered_at ? '#4caf50' : 'rgba(0,0,0,0.08)', color: selectedOrder?.delivered_at ? 'white' : 'text.disabled', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: selectedOrder?.delivered_at ? '#4caf50' : 'rgba(0,0,0,0.08)', color: selectedOrder?.delivered_at ? 'white' : 'text.disabled', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <CheckCircle size={18} />
                     </Box>
                     <Box>
@@ -1588,8 +1658,8 @@ const OrdersManagement = () => {
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Stack direction="row" spacing={2} alignItems="flex-start">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#2196f3', color: 'white', display: 'flex' }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#2196f3', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <ShoppingBag size={18} />
                     </Box>
                     <Box>
@@ -1650,8 +1720,8 @@ const OrdersManagement = () => {
                 {(selectedOrder?.address || selectedOrder?.city) && (
                   <Grid size={{ xs: 12 }}>
                     <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
-                    <Stack direction="row" spacing={2} alignItems="flex-start">
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex' }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <MapPin size={18} />
                       </Box>
                       <Box>
