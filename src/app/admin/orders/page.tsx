@@ -61,8 +61,8 @@ const statusColors: { [key: string]: any } = {
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type OrderItem = { id: string; name: string; price: number; quantity: number; images?: string[]; stock?: number };
-type Product = { id: string; name: string; price: number; stock: number; category_id: string; images?: string[]; category?: { name: string } };
+type OrderItem = { id: string; name: string; price: number; discount?: number; quantity: number; images?: string[]; stock?: number };
+type Product = { id: string; name: string; price: number; discount?: number; stock: number; category_id: string; images?: string[]; category?: { name: string } };
 type Category = { id: string; name: string; parent_id?: string | null };
 
 // ─── Wizard para crear pedido ─────────────────────────────────────────────────
@@ -132,7 +132,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         showAlert(`"${product.name}" no tiene stock disponible.`);
         return;
       }
-      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1, images: product.images, stock: product.stock }]);
+      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, discount: product.discount, quantity: 1, images: product.images, stock: product.stock }]);
     }
   };
 
@@ -150,7 +150,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
     setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
   };
 
-  const total = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const total = cartItems.reduce((acc, i) => acc + (i.price * (1 - (i.discount || 0) / 100)) * i.quantity, 0);
 
   const handleSubmit = async () => {
     setSaving(true);
@@ -161,7 +161,12 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
       address: address.trim(),
       city: city.trim(),
       zip_code: zipCode.trim(),
-      items: cartItems,
+      items: cartItems.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price * (1 - (i.discount || 0) / 100),
+        quantity: i.quantity,
+      })),
       total,
       status: 'Pendiente',
       created_at: new Date(orderDate).toISOString(),
@@ -169,6 +174,23 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
 
     setSaving(false);
     if (!error && data) {
+      // Descontar el stock de los productos comprados
+      for (const item of cartItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (product) {
+          const currentStock = product.stock || 0;
+          const newStock = Math.max(0, currentStock - item.quantity);
+          await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', item.id);
+        }
+      }
       onCreated();
       handleReset();
     } else {
@@ -335,11 +357,20 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                     </Box>
                   ) : (
                     <Stack spacing={1}>
-                      {cartItems.map(item => (
+                      {cartItems.map(item => {
+                        const effPrice = item.price * (1 - (item.discount || 0) / 100);
+                        return (
                         <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'white', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
                           <Box sx={{ flexGrow: 1 }}>
                             <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{item.name}</Typography>
-                            <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                            {item.discount && item.discount > 0 ? (
+                              <>
+                                <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
+                                <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', ml: 0.5 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                              </>
+                            ) : (
+                              <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                            )}
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
                             <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
@@ -354,7 +385,8 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                             <Trash2 size={16} />
                           </IconButton>
                         </Box>
-                      ))}
+                        );
+                      })}
                     </Stack>
                   )}
                 </Box>
@@ -497,12 +529,15 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
             <Box>
               <Typography variant="overline" color="text.secondary" sx={{ mb: 1, display: 'block' }}>Productos</Typography>
               <Stack spacing={1}>
-                {cartItems.map(item => (
+                {cartItems.map(item => {
+                  const effPrice = item.price * (1 - (item.discount || 0) / 100);
+                  return (
                   <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2">{item.quantity}x {item.name}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                    <Typography variant="body2">{item.quantity}x {item.name}{item.discount && item.discount > 0 ? ` (-${item.discount}%)` : ''}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
                   </Box>
-                ))}
+                  );
+                })}
               </Stack>
             </Box>
 
@@ -645,7 +680,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         showAlert(`"${product.name}" no tiene stock disponible.`);
         return;
       }
-      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1, images: product.images, stock: product.stock }]);
+      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, discount: product.discount, quantity: 1, images: product.images, stock: product.stock }]);
     }
   };
 
@@ -663,7 +698,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
     setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
   };
 
-  const total = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const total = cartItems.reduce((acc, i) => acc + (i.price * (1 - (i.discount || 0) / 100)) * i.quantity, 0);
 
   const handleUpdate = async () => {
     if (!order) return;
@@ -677,7 +712,12 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         address: address.trim(),
         city: city.trim(),
         zip_code: zipCode.trim(),
-        items: cartItems,
+        items: cartItems.map(i => ({
+          id: i.id,
+          name: i.name,
+          price: i.price * (1 - (i.discount || 0) / 100),
+          quantity: i.quantity,
+        })),
         total,
         created_at: new Date(orderDate).toISOString(),
       })
@@ -685,6 +725,35 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
 
     setSaving(false);
     if (!error) {
+      // Ajustar el stock de los productos comprados si el pedido no está Cancelado
+      if (order.status !== 'Cancelado') {
+        const oldItemsMap = new Map<string, number>(order.items?.map((i: any) => [i.id, i.quantity]) || []);
+        const newItemsMap = new Map<string, number>(cartItems.map((i: any) => [i.id, i.quantity]));
+        const allItemIds = Array.from(new Set<string>([...oldItemsMap.keys(), ...newItemsMap.keys()]));
+
+        for (const itemId of allItemIds) {
+          const oldQty = oldItemsMap.get(itemId) || 0;
+          const newQty = newItemsMap.get(itemId) || 0;
+          const diff = newQty - oldQty;
+
+          if (diff !== 0) {
+            const { data: product } = await supabase
+              .from('products')
+              .select('stock')
+              .eq('id', itemId)
+              .single();
+
+            if (product) {
+              const currentStock = product.stock || 0;
+              const newStock = Math.max(0, currentStock - diff);
+              await supabase
+                .from('products')
+                .update({ stock: newStock })
+                .eq('id', itemId);
+            }
+          }
+        }
+      }
       onUpdated();
       onClose();
     } else {
@@ -1080,37 +1149,12 @@ const OrdersManagement = () => {
       const oldStatus = order.status;
       const items = order.items || [];
 
-      // Si pasa a 'Entregado' desde cualquier otro estado
-      if (oldStatus !== 'Entregado' && newStatus === 'Entregado') {
-        // Reducir stock
-        for (const item of items) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
+      const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+      const oldIsActive = isActive(oldStatus);
+      const newIsActive = isActive(newStatus);
 
-          if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = Math.max(0, currentStock - item.quantity);
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
-              .eq('id', item.id);
-          }
-        }
-
-        // También actualizamos la fecha de entrega (delivered_at) a la fecha actual
-        const nowStr = new Date().toISOString();
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: nowStr })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
-      }
-      // Si sale de 'Entregado' hacia cualquier otro estado
-      else if (oldStatus === 'Entregado' && newStatus !== 'Entregado') {
+      // Si pasa de un estado activo a 'Cancelado'
+      if (oldIsActive && newStatus === 'Cancelado') {
         // Devolver stock
         for (const item of items) {
           const { data: product } = await supabase
@@ -1128,23 +1172,42 @@ const OrdersManagement = () => {
               .eq('id', item.id);
           }
         }
-
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: null })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
       }
-      // Cualquier otra transición de estado intermedia (ej. Pendiente -> Enviado, Pagado, etc.)
-      else {
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus })
-          .eq('id', id);
+      // Si pasa de 'Cancelado' a un estado activo
+      else if (oldStatus === 'Cancelado' && newIsActive) {
+        // Reducir stock
+        for (const item of items) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.id)
+            .single();
 
-        if (updateErr) throw updateErr;
+          if (product) {
+            const currentStock = product.stock || 0;
+            const newStock = Math.max(0, currentStock - item.quantity);
+            await supabase
+              .from('products')
+              .update({ stock: newStock })
+              .eq('id', item.id);
+          }
+        }
       }
+
+      // Actualizar el estado en la base de datos
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'Entregado') {
+        updateData.delivered_at = new Date().toISOString();
+      } else if (oldStatus === 'Entregado' && newStatus !== 'Entregado') {
+        updateData.delivered_at = null;
+      }
+
+      const { error: updateErr } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', id);
+
+      if (updateErr) throw updateErr;
 
       fetchOrders();
     } catch (err) {
@@ -1181,6 +1244,30 @@ const OrdersManagement = () => {
 
   const handleDeleteConfirm = async () => {
     if (!orderToDelete) return;
+
+    // Si el pedido que se va a eliminar estaba en estado activo (no Cancelado),
+    // devolvemos el stock de sus productos antes de eliminarlo.
+    const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+    if (isActive(orderToDelete.status)) {
+      const items = orderToDelete.items || [];
+      for (const item of items) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (product) {
+          const currentStock = product.stock || 0;
+          const newStock = currentStock + item.quantity;
+          await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', item.id);
+        }
+      }
+    }
+
     await supabase.from('orders').delete().eq('id', orderToDelete.id);
     setDeleteDialogOpen(false);
     setOrderToDelete(null);
