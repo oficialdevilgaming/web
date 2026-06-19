@@ -61,12 +61,12 @@ const statusColors: { [key: string]: any } = {
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type OrderItem = { id: string; name: string; price: number; quantity: number; images?: string[]; stock?: number };
-type Product = { id: string; name: string; price: number; stock: number; category_id: string; images?: string[]; category?: { name: string } };
+type OrderItem = { id: string; name: string; price: number; discount?: number; quantity: number; images?: string[]; stock?: number };
+type Product = { id: string; name: string; price: number; discount?: number; stock: number; category_id: string; images?: string[]; category?: { name: string } };
 type Category = { id: string; name: string; parent_id?: string | null };
 
 // ─── Wizard para crear pedido ─────────────────────────────────────────────────
-const STEPS = ['Seleccionar Productos', 'Datos de Contacto', 'Confirmar Pedido'];
+const STEPS = ['Productos', 'Contacto', 'Confirmar Pedido'];
 
 interface CreateOrderWizardProps {
   open: boolean;
@@ -132,7 +132,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         showAlert(`"${product.name}" no tiene stock disponible.`);
         return;
       }
-      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1, images: product.images, stock: product.stock }]);
+      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, discount: product.discount, quantity: 1, images: product.images, stock: product.stock }]);
     }
   };
 
@@ -150,29 +150,46 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
     setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
   };
 
-  const total = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const total = cartItems.reduce((acc, i) => acc + (i.price * (1 - (i.discount || 0) / 100)) * i.quantity, 0);
 
   const handleSubmit = async () => {
     setSaving(true);
-    const { data, error } = await supabase.from('orders').insert([{
-      customer_name: contactName.trim(),
-      phone: contactPhone.trim(),
-      email: contactEmail.trim(),
-      address: address.trim(),
-      city: city.trim(),
-      zip_code: zipCode.trim(),
-      items: cartItems,
-      total,
-      status: 'Pendiente',
-      created_at: new Date(orderDate).toISOString(),
-    }]).select('id').single();
+    try {
+      const { data, error } = await supabase.from('orders').insert([{
+        customer_name: contactName.trim(),
+        phone: contactPhone.trim(),
+        email: contactEmail.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        zip_code: zipCode.trim(),
+        items: cartItems,
+        total,
+        status: 'Pendiente',
+        created_at: new Date(orderDate).toISOString(),
+      }]).select('id').single();
 
-    setSaving(false);
-    if (!error && data) {
+      if (error || !data) {
+        showAlert('Error al crear el pedido: ' + (error?.message || 'Error desconocido'));
+        return;
+      }
+
+      // Descontar stock inmediatamente (Reserva Inmediata)
+      for (const item of cartItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+        if (product) {
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+        }
+      }
+
       onCreated();
       handleReset();
-    } else {
-      showAlert('Error al crear el pedido: ' + (error?.message || 'Error desconocido'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -310,15 +327,19 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                 <CheckCircle size={16} /> Carrito ({cartItems.length} items)
               </Typography>
               <Box sx={{
-                height: 480,
+                height: 'auto',
+                maxHeight: { xs: 320, md: 480 },
                 display: 'flex',
                 flexDirection: 'column',
                 border: '1px solid rgba(0,0,0,0.08)',
                 borderRadius: 2,
-                bgcolor: 'rgba(0,0,0,0.01)'
+                bgcolor: 'rgba(0,0,0,0.01)',
+                overflow: 'hidden'
               }}>
                 <Box sx={{
                   flexGrow: 1,
+                  flexShrink: 1,
+                  minHeight: 0,
                   overflowY: 'auto',
                   p: 1.5,
                   '&::-webkit-scrollbar': { width: '6px' },
@@ -335,26 +356,36 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                     </Box>
                   ) : (
                     <Stack spacing={1}>
-                      {cartItems.map(item => (
-                        <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'white', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                          <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{item.name}</Typography>
-                            <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
-                            <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
+                      {cartItems.map(item => {
+                        const effPrice = item.price * (1 - (item.discount || 0) / 100);
+                        return (
+                          <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'white', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                            <Box sx={{ flexGrow: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{item.name}</Typography>
+                              {item.discount && item.discount > 0 ? (
+                                <>
+                                  <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
+                                  <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', ml: 0.5 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                                </>
+                              ) : (
+                                <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                              )}
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
+                              </IconButton>
+                              <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity + 1)} sx={{ p: 0.5 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}><Plus size={12} /></Typography>
+                              </IconButton>
+                            </Box>
+                            <IconButton size="small" color="error" onClick={() => handleRemoveProduct(item.id)} sx={{ bgcolor: 'error.lighter' }}>
+                              <Trash2 size={16} />
                             </IconButton>
-                            <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
-                            <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity + 1)} sx={{ p: 0.5 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}><Plus size={12} /></Typography>
-                            </IconButton>
                           </Box>
-                          <IconButton size="small" color="error" onClick={() => handleRemoveProduct(item.id)} sx={{ bgcolor: 'error.lighter' }}>
-                            <Trash2 size={16} />
-                          </IconButton>
-                        </Box>
-                      ))}
+                        );
+                      })}
                     </Stack>
                   )}
                 </Box>
@@ -448,48 +479,106 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         {activeStep === 2 && (
           <Stack spacing={3} sx={{ py: 2 }}>
             <Box sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', bgcolor: 'rgba(0,0,0,0.01)' }}>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Cliente</Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Nombre</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactName}</Typography>
-                </Box>
-                <Box sx={{ ml: 2, p: 1, borderRadius: 2, bgcolor: '#25d366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Phone size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Teléfono</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactPhone}</Typography>
-                </Box>
-                {contactEmail && (
-                  <>
-                    <Box sx={{ ml: 2, p: 1, borderRadius: 2, bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Mail size={18} />
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2, fontWeight: 700, letterSpacing: '0.05em' }}>
+                INFORMACIÓN DEL CLIENTE
+              </Typography>
+              <Grid container spacing={2.5}>
+                {/* Nombre */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: '#cc0000',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <User size={18} />
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Email</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{contactEmail}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Nombre</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactName}</Typography>
                     </Box>
-                  </>
+                  </Stack>
+                </Grid>
+
+                {/* Teléfono */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: '#25d366',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <Phone size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Teléfono</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactPhone}</Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
+
+                {/* Email */}
+                {contactEmail && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        bgcolor: '#3f51b5',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Mail size={18} />
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Email</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{contactEmail}</Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
                 )}
-              </Stack>
 
-              <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
-
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={18} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
-                  </Typography>
-                </Box>
-              </Stack>
+                {/* Dirección */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0,0,0,0.05)',
+                      color: 'text.secondary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <MapPin size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Dirección de Entrega</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
+              </Grid>
             </Box>
 
             <Divider />
@@ -497,12 +586,15 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
             <Box>
               <Typography variant="overline" color="text.secondary" sx={{ mb: 1, display: 'block' }}>Productos</Typography>
               <Stack spacing={1}>
-                {cartItems.map(item => (
-                  <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2">{item.quantity}x {item.name}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
-                  </Box>
-                ))}
+                {cartItems.map(item => {
+                  const effPrice = item.price * (1 - (item.discount || 0) / 100);
+                  return (
+                    <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">{item.quantity}x {item.name}{item.discount && item.discount > 0 ? ` (-${item.discount}%)` : ''}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
+                    </Box>
+                  );
+                })}
               </Stack>
             </Box>
 
@@ -591,10 +683,14 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
 
           const stockMap = new Map(productsData?.map(p => [p.id, p.stock]) || []);
 
-          setCartItems(items.map((i: any) => ({
-            ...i,
-            stock: stockMap.get(i.id) ?? 9999
-          })));
+          // El stock efectivo disponible = stock en BD + cantidad ya reservada en este pedido
+          // (porque al editar devolveremos y retomaremos el stock según la diferencia)
+          const isActive = order.status !== 'Cancelado';
+          setCartItems(items.map((i: any) => {
+            const dbStock = stockMap.get(i.id) ?? 9999;
+            const effectiveStock = isActive ? dbStock + i.quantity : dbStock;
+            return { ...i, stock: effectiveStock };
+          }));
         } else {
           setCartItems([]);
         }
@@ -635,7 +731,13 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const handleAddProduct = (product: Product) => {
     const existing = cartItems.find(i => i.id === product.id);
     if (existing) {
-      if (existing.quantity + 1 > product.stock) {
+      // Para pedidos activos el stock de BD ya fue descontado por esta reserva,
+      // por lo que el límite efectivo = stock_BD + unidades_ya_en_pedido
+      const isActive = order?.status !== 'Cancelado';
+      const effectiveLimit = isActive
+        ? product.stock + existing.quantity
+        : product.stock;
+      if (existing.quantity + 1 > effectiveLimit) {
         showAlert(`No se puede agregar más unidades. El stock disponible de "${product.name}" es ${product.stock}.`);
         return;
       }
@@ -645,7 +747,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         showAlert(`"${product.name}" no tiene stock disponible.`);
         return;
       }
-      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1, images: product.images, stock: product.stock }]);
+      setCartItems(prev => [...prev, { id: product.id, name: product.name, price: product.price, discount: product.discount, quantity: 1, images: product.images, stock: product.stock }]);
     }
   };
 
@@ -663,7 +765,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
     setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
   };
 
-  const total = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const total = cartItems.reduce((acc, i) => acc + (i.price * (1 - (i.discount || 0) / 100)) * i.quantity, 0);
 
   const handleUpdate = async () => {
     if (!order) return;
@@ -677,7 +779,12 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         address: address.trim(),
         city: city.trim(),
         zip_code: zipCode.trim(),
-        items: cartItems,
+        items: cartItems.map(i => ({
+          id: i.id,
+          name: i.name,
+          price: i.price * (1 - (i.discount || 0) / 100),
+          quantity: i.quantity,
+        })),
         total,
         created_at: new Date(orderDate).toISOString(),
       })
@@ -685,6 +792,35 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
 
     setSaving(false);
     if (!error) {
+      // Ajustar el stock de los productos comprados si el pedido no está Cancelado
+      if (order.status !== 'Cancelado') {
+        const oldItemsMap = new Map<string, number>(order.items?.map((i: any) => [i.id, i.quantity]) || []);
+        const newItemsMap = new Map<string, number>(cartItems.map((i: any) => [i.id, i.quantity]));
+        const allItemIds = Array.from(new Set<string>([...oldItemsMap.keys(), ...newItemsMap.keys()]));
+
+        for (const itemId of allItemIds) {
+          const oldQty = oldItemsMap.get(itemId) || 0;
+          const newQty = newItemsMap.get(itemId) || 0;
+          const diff = newQty - oldQty;
+
+          if (diff !== 0) {
+            const { data: product } = await supabase
+              .from('products')
+              .select('stock')
+              .eq('id', itemId)
+              .single();
+
+            if (product) {
+              const currentStock = product.stock || 0;
+              const newStock = Math.max(0, currentStock - diff);
+              await supabase
+                .from('products')
+                .update({ stock: newStock })
+                .eq('id', itemId);
+            }
+          }
+        }
+      }
       onUpdated();
       onClose();
     } else {
@@ -1064,6 +1200,8 @@ const OrdersManagement = () => {
   // Removed client-side filteredOrders and pagedOrders memos
 
   const handleStatusChange = async (id: string, newStatus: string) => {
+    const ACTIVE_STATUSES = ['Pendiente', 'Enviado', 'Pagado', 'Entregado'];
+
     try {
       // 1. Obtener los datos actuales del pedido
       const { data: order, error: fetchErr } = await supabase
@@ -1073,15 +1211,32 @@ const OrdersManagement = () => {
         .single();
 
       if (fetchErr || !order) {
-        console.error("Error al obtener pedido para cambiar estado:", fetchErr);
+        console.error('Error al obtener pedido para cambiar estado:', fetchErr);
         return;
       }
 
       const oldStatus = order.status;
       const items = order.items || [];
 
-      // Si pasa a 'Entregado' desde cualquier otro estado
-      if (oldStatus !== 'Entregado' && newStatus === 'Entregado') {
+      const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+      const oldIsActive = isActive(oldStatus);
+      const newIsActive = isActive(newStatus);
+
+      // Si pasa de un estado activo a 'Cancelado'
+      if (oldIsActive && newStatus === 'Cancelado') {
+        // Devolver stock
+        for (const item of items) {
+          const { data: product } = await supabase
+            .from('products').select('stock').eq('id', item.id).single();
+          if (product) {
+            await supabase.from('products')
+              .update({ stock: (product.stock || 0) + item.quantity })
+              .eq('id', item.id);
+          }
+        }
+      }
+      // Si pasa de 'Cancelado' a un estado activo
+      else if (oldStatus === 'Cancelado' && newIsActive) {
         // Reducir stock
         for (const item of items) {
           const { data: product } = await supabase
@@ -1099,56 +1254,26 @@ const OrdersManagement = () => {
               .eq('id', item.id);
           }
         }
-
-        // También actualizamos la fecha de entrega (delivered_at) a la fecha actual
-        const nowStr = new Date().toISOString();
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: nowStr })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
       }
-      // Si sale de 'Entregado' hacia cualquier otro estado
-      else if (oldStatus === 'Entregado' && newStatus !== 'Entregado') {
-        // Devolver stock
-        for (const item of items) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
 
-          if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = currentStock + item.quantity;
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
-              .eq('id', item.id);
-          }
-        }
-
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: null })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
+      // Actualizar el estado en la base de datos
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'Entregado') {
+        updateData.delivered_at = new Date().toISOString();
+      } else if (oldStatus === 'Entregado' && newStatus !== 'Entregado') {
+        updateData.delivered_at = null;
       }
-      // Cualquier otra transición de estado intermedia (ej. Pendiente -> Enviado, Pagado, etc.)
-      else {
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus })
-          .eq('id', id);
 
-        if (updateErr) throw updateErr;
-      }
+      const { error: updateErr } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', id);
+
+      if (updateErr) throw updateErr;
 
       fetchOrders();
     } catch (err) {
-      console.error("Error al procesar el cambio de estado:", err);
+      console.error('Error al procesar el cambio de estado:', err);
     }
   };
 
@@ -1181,6 +1306,30 @@ const OrdersManagement = () => {
 
   const handleDeleteConfirm = async () => {
     if (!orderToDelete) return;
+
+    // Si el pedido que se va a eliminar estaba en estado activo (no Cancelado),
+    // devolvemos el stock de sus productos antes de eliminarlo.
+    const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+    if (isActive(orderToDelete.status)) {
+      const items = orderToDelete.items || [];
+      for (const item of items) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (product) {
+          const currentStock = product.stock || 0;
+          const newStock = currentStock + item.quantity;
+          await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', item.id);
+        }
+      }
+    }
+
     await supabase.from('orders').delete().eq('id', orderToDelete.id);
     setDeleteDialogOpen(false);
     setOrderToDelete(null);
@@ -1300,9 +1449,17 @@ const OrdersManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={8} align="center">Cargando...</TableCell></TableRow>
+              ) : orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No hay pedidos.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : orders.map((order) => (
                 <Fragment key={order.id}>
-                  <TableRow hover>
+                  <TableRow hover onClick={() => handleViewDetail(order)} sx={{ cursor: 'pointer' }}>
                     <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>#{order.id}</TableCell>
                     <TableCell sx={{ fontWeight: 500 }}>
                       <Box>
@@ -1310,7 +1467,7 @@ const OrdersManagement = () => {
                         {/* Mobile: botón para expandir detalles */}
                         <Box
                           component="button"
-                          onClick={() => toggleRow(order.id)}
+                          onClick={(e: React.MouseEvent) => { e.stopPropagation(); toggleRow(order.id); }}
                           sx={{
                             display: { xs: 'flex', md: 'none' },
                             alignItems: 'center',
@@ -1348,7 +1505,7 @@ const OrdersManagement = () => {
                       {order.delivered_at ? new Date(order.delivered_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '−'}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
                       <Select
                         size="small"
                         value={order.status}
@@ -1380,7 +1537,7 @@ const OrdersManagement = () => {
                         <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
                       </Select>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton size="small" onClick={() => handleViewDetail(order)} aria-label="Ver detalles">
                           <Eye size={18} />
@@ -1502,7 +1659,7 @@ const OrdersManagement = () => {
                 {/* Nombre */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <User size={18} />
                     </Box>
                     <Box>
@@ -1515,7 +1672,7 @@ const OrdersManagement = () => {
                 {/* Teléfono + botón WhatsApp */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#25d366', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#25d366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Phone size={18} />
                     </Box>
                     <Box sx={{ flexGrow: 1 }}>
@@ -1544,7 +1701,7 @@ const OrdersManagement = () => {
                 {selectedOrder?.email && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Stack direction="row" spacing={2} alignItems="center">
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#3f51b5', color: 'white', display: 'flex' }}>
+                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Mail size={18} />
                       </Box>
                       <Box sx={{ flexGrow: 1 }}>
@@ -1557,7 +1714,7 @@ const OrdersManagement = () => {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#ff9800', color: 'white', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#ff9800', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Clock size={18} />
                     </Box>
                     <Box>
@@ -1573,7 +1730,7 @@ const OrdersManagement = () => {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: selectedOrder?.delivered_at ? '#4caf50' : 'rgba(0,0,0,0.08)', color: selectedOrder?.delivered_at ? 'white' : 'text.disabled', display: 'flex' }}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: selectedOrder?.delivered_at ? '#4caf50' : 'rgba(0,0,0,0.08)', color: selectedOrder?.delivered_at ? 'white' : 'text.disabled', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <CheckCircle size={18} />
                     </Box>
                     <Box>
@@ -1588,8 +1745,8 @@ const OrdersManagement = () => {
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Stack direction="row" spacing={2} alignItems="flex-start">
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#2196f3', color: 'white', display: 'flex' }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#2196f3', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <ShoppingBag size={18} />
                     </Box>
                     <Box>
@@ -1650,8 +1807,8 @@ const OrdersManagement = () => {
                 {(selectedOrder?.address || selectedOrder?.city) && (
                   <Grid size={{ xs: 12 }}>
                     <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
-                    <Stack direction="row" spacing={2} alignItems="flex-start">
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex' }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <MapPin size={18} />
                       </Box>
                       <Box>

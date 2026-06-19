@@ -96,6 +96,7 @@ const BannersManagement = () => {
   }, []);
 
   const filteredBanners = useMemo(() => {
+    if (!searchTerm.trim()) return banners;
     return banners.filter(b => {
       const search = searchTerm.toLowerCase();
       const titleMatch = b.title?.toLowerCase().includes(search) || false;
@@ -359,7 +360,7 @@ const BannersManagement = () => {
             <TableHead sx={{ bgcolor: 'rgba(0,0,0,0.02)' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, width: 140 }}>Imagen</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Detalles del Banner</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Detalles</TableCell>
                 <TableCell sx={{ fontWeight: 700, width: 120 }} align="center">Orden</TableCell>
                 <TableCell sx={{ fontWeight: 700, width: 120 }} align="center">Estado</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700, width: 140 }}>Acciones</TableCell>

@@ -849,7 +849,7 @@ export default function ProductDetailPage() {
                         {isAdded
                           ? <><Check size={18} /> Agregado al carrito</>
                           : isCartLimitReached
-                            ? <><ShoppingCart size={18} /> Límite de stock en carrito</>
+                            ? <><ShoppingCart size={18} />Sin stock</>
                             : <><ShoppingCart size={18} /> Agregar al carrito</>
                         }
                       </motion.span>

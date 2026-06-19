@@ -62,45 +62,121 @@ const CheckoutPage = () => {
   const shipping = subtotal > 500 ? 0 : 15;
   const total = subtotal + shipping;
 
+  const isFormValid =
+    formData.firstName &&
+    formData.lastName &&
+    formData.phone &&
+    formData.email &&
+    formData.address &&
+    formData.city &&
+    formData.zipCode;
+
+  const isCartValid = state.items.length > 0;
+
   const handleNext = async () => {
     if (activeStep === 0) {
-      // 1. Save to Supabase
+      // 1. Validar stock disponible antes de crear el pedido
+      const itemIds = state.items.map((item: any) => item.id);
+      const { data: productsStock } = await supabase
+        .from('products')
+        .select('id, name, stock')
+        .in('id', itemIds);
+
+      if (productsStock) {
+        const stockMap = new Map(productsStock.map((p: any) => [p.id, p]));
+        for (const item of state.items) {
+          const product = stockMap.get(item.id) as any;
+          if (!product || product.stock < item.quantity) {
+            const available = product?.stock ?? 0;
+            setErrorModalMsg(
+              `Stock insuficiente para "${item.name}". Solicitás ${item.quantity} unidad(es) pero solo hay ${available} disponible(s).`
+            );
+            setErrorModalOpen(true);
+            return;
+          }
+        }
+      }
+
+      // 2. Registrar pedido en Supabase
       const newOrder = {
-        customer_name: `${formData.firstName} ${formData.lastName}`,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        zip_code: formData.zipCode,
-        total: total,
+        customer_name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
+        phone: formData.phone || '',
+        email: formData.email || '',
+        address: formData.address || '',
+        city: formData.city || '',
+        zip_code: formData.zipCode || '',
+        total: Number(total) || 0,
         status: 'Pendiente',
-        items: state.items.map(item => ({
+        items: (state.items || []).map(item => ({
           id: item.id,
           name: item.name,
-          quantity: item.quantity,
-          price: item.price * (1 - (item.discount || 0) / 100)
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) * (1 - (item.discount || 0) / 100)
         }))
       };
 
-      const { data, error } = await supabase.from('orders').insert([newOrder]).select('id').single();
-
-      if (error || !data) {
-        console.error('Error saving order:', error);
-        setErrorModalMsg('Hubo un error al registrar el pedido. Intenta nuevamente.');
+      if (!isFormValid) {
+        setErrorModalMsg('Completa todos los campos antes de continuar.');
         setErrorModalOpen(true);
         return;
       }
 
+      if (!isCartValid) {
+        setErrorModalMsg('Tu carrito está vacío.');
+        setErrorModalOpen(true);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([newOrder])
+        .select('id')
+        .single();
+
+      if (error || !data) {
+        console.error('Order insert error:', error);
+        setErrorModalMsg(error?.message || 'Error al registrar el pedido');
+        setErrorModalOpen(true);
+        return;
+      }
       const orderId = data.id;
 
-      // 2. Format WhatsApp Message
+      // Descontar el stock de los productos comprados
+      for (const item of state.items) {
+        const { data: product, error } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (!product || error) continue;
+
+        const currentStock = product.stock || 0;
+        const newStock = Math.max(0, currentStock - (item.quantity || 0));
+
+        await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+      }
+
+      // 3. Descontar stock inmediatamente (Reserva Inmediata)
+      for (const item of state.items) {
+        const product = (productsStock ?? []).find((p: any) => p.id === item.id) as any;
+        if (product) {
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+        }
+      }
+
+      // 4. Armar mensaje de WhatsApp
       const message = `*NUEVO PEDIDO: #${orderId}*\n\n` +
         `*Cliente:* ${formData.firstName} ${formData.lastName}\n` +
         `*Email:* ${formData.email}\n` +
         `*Teléfono:* ${formData.phone}\n` +
         `*Dirección:* ${formData.address}, ${formData.city}\n\n` +
         `*Productos:*\n` +
-        state.items.map(item => {
+        state.items.map((item: any) => {
           const effPrice = item.price * (1 - (item.discount || 0) / 100);
           const priceDetail = item.discount && item.discount > 0
             ? `$${effPrice.toLocaleString('es-ES', { maximumFractionDigits: 0 })} (con ${item.discount}% OFF, antes $${item.price.toLocaleString('es-ES')})`
@@ -112,7 +188,7 @@ const CheckoutPage = () => {
       const generatedLink = `https://wa.me/5491155099149?text=${encodeURIComponent(message)}`;
       setWhatsappUrl(generatedLink);
 
-      // 3. Clear Cart and go to confirmation
+      // 5. Limpiar carrito y avanzar a confirmación
       dispatch({ type: 'CLEAR_CART' });
       setActiveStep(1);
 
@@ -202,13 +278,13 @@ const CheckoutPage = () => {
   );
 
   return (
-    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '100vh', py: 8 }}>
+    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '100vh', py: { xs: 4, md: 7 } }}>
       <Container maxWidth="lg">
         {activeStep < 1 ? (
           <>
-            <Typography variant="h4" sx={{ mb: 6, fontWeight: 800, textAlign: 'center' }}>Finalizar Compra</Typography>
+            <Typography variant="h4" sx={{ mb: { xs: 3, md: 4 }, fontWeight: 850, textAlign: 'center', fontSize: { xs: '1.9rem', md: '2.4rem' } }}>Finalizar Compra</Typography>
 
-            <Stepper activeStep={activeStep} sx={{ mb: 8, display: { xs: 'none', sm: 'flex' } }}>
+            <Stepper activeStep={activeStep} sx={{ mb: 5, display: { xs: 'none', sm: 'flex' } }}>
               {steps.map((label) => (
                 <Step key={label}>
                   <StepLabel>{label}</StepLabel>
@@ -216,44 +292,25 @@ const CheckoutPage = () => {
               ))}
             </Stepper>
 
-            <Grid container spacing={4}>
-              <Grid size={{ xs: 12, md: 8 }}>
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)' }}>
-                  {activeStep === 0 && renderShippingForm()}
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 6 }}>
-                    <Button
-                      variant="text"
-                      color="inherit"
-                      disabled={activeStep === 0}
-                      onClick={handleBack}
-                      startIcon={<ArrowLeft size={18} />}
-                      sx={{ fontWeight: 600 }}
-                    >
-                      Atrás
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      sx={{ px: 6, py: 1.5, fontWeight: 800 }}
-                    >
-                      Continuar y Enviar
-                    </Button>
-                  </Box>
-                </Paper>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)' }}>
+            <Grid container spacing={{ xs: 3, md: 4 }} alignItems="flex-start">
+              <Grid size={{ xs: 12, md: 4 }} sx={{ order: { xs: 1, md: 2 } }}>
+                <Paper elevation={0} sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)', position: { xs: 'static', md: 'sticky' }, top: { md: 96 } }}>
                   <Typography variant="h6" sx={{ mb: 3, fontWeight: 800 }}>Resumen de Compra</Typography>
                   <Stack spacing={2}>
                     {state.items.map((item: any) => {
                       return (
                         <Box key={item.id}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-start' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {item.quantity}x {item.name}
-                            </Typography>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35 }}>
+                                {item.quantity}x {item.name}
+                              </Typography>
+                              {item.discount > 0 && (
+                                <Typography variant="caption" color="error.main" sx={{ fontWeight: 700 }}>
+                                  {item.discount}% OFF
+                                </Typography>
+                              )}
+                            </Box>
                             <Box sx={{ textAlign: 'right', minWidth: '80px' }}>
                               {item.discount > 0 ? (
                                 <>
@@ -290,25 +347,53 @@ const CheckoutPage = () => {
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{shipping === 0 ? 'Gratis' : `$${shipping}`}</Typography>
                     </Box> */}
                     <Divider sx={{ my: 1 }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mt: 1, p: 2, borderRadius: 3, bgcolor: 'rgba(204,0,0,0.06)' }}>
                       <Typography variant="h6" sx={{ fontWeight: 800 }}>Total</Typography>
-                      <Typography variant="h5" color="primary.main" sx={{ fontWeight: 900 }}>
+                      <Typography variant="h5" color="primary.main" sx={{ fontWeight: 950, fontSize: { xs: '1.8rem', sm: '2rem' } }}>
                         ${total.toLocaleString('es-ES', { maximumFractionDigits: 0 })}
                       </Typography>
                     </Box>
                   </Stack>
                 </Paper>
 
-                <Stack spacing={2} sx={{ mt: 3, px: 2 }}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Truck size={18} opacity={0.5} />
-                    <Typography variant="caption" color="text.secondary">Entrega coordinada vía WhatsApp</Typography>
+                <Paper elevation={0} sx={{ mt: 2, p: 2.5, borderRadius: 3, border: '1px solid rgba(0,0,0,0.05)' }}>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Truck size={18} color="#666" />
+                      <Typography variant="body2" color="text.secondary">Entrega coordinada via WhatsApp</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <ListChecks size={18} color="#666" />
+                      <Typography variant="body2" color="text.secondary">Atención personalizada 24/7</Typography>
+                    </Stack>
                   </Stack>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <ListChecks size={18} opacity={0.5} />
-                    <Typography variant="caption" color="text.secondary">Atención personalizada 24/7</Typography>
-                  </Stack>
-                </Stack>
+                </Paper>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 8 }} sx={{ order: { xs: 2, md: 1 } }}>
+                <Paper elevation={0} sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)' }}>
+                  {activeStep === 0 && renderShippingForm()}
+
+                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 2, mt: 6 }}>
+                    <Button
+                      variant="text"
+                      color="inherit"
+                      disabled={activeStep === 0}
+                      onClick={handleBack}
+                      startIcon={<ArrowLeft size={18} />}
+                      sx={{ fontWeight: 600 }}
+                    >
+                      Atrás
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={handleNext}
+                      sx={{ width: { xs: '100%', sm: 'auto' }, px: 6, py: 1.5, fontWeight: 800 }}
+                    >
+                      Continuar y Enviar
+                    </Button>
+                  </Box>
+                </Paper>
               </Grid>
             </Grid>
           </>

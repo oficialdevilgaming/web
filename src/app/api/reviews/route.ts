@@ -23,9 +23,9 @@ const FALLBACK_REVIEWS = {
 
 export async function GET() {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_SERPAPI_KEY;
+    const apiKey = process.env.SERPAPI_KEY;
     if (!apiKey) {
-      console.warn("NEXT_PUBLIC_SERPAPI_KEY is not defined in environment variables. Returning fallback reviews.");
+      console.warn("SERPAPI_KEY is not defined in environment variables. Returning fallback reviews.");
       return NextResponse.json(FALLBACK_REVIEWS);
     }
 

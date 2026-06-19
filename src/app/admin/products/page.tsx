@@ -516,9 +516,17 @@ const ProductsManagement = () => {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={6} align="center">Cargando...</TableCell></TableRow>
+              ) : allProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No hay productos
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : allProducts.map((product: Product) => (
                 <Fragment key={product.id}>
-                  <TableRow hover>
+                  <TableRow hover onClick={() => handleOpenDetail(product)} sx={{ cursor: 'pointer' }}>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Box>
@@ -526,7 +534,7 @@ const ProductsManagement = () => {
                           {/* Mobile: botón para expandir detalles */}
                           <Box
                             component="button"
-                            onClick={() => toggleRow(product.id)}
+                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); toggleRow(product.id); }}
                             sx={{
                               display: { xs: 'flex', md: 'none' },
                               alignItems: 'center',
@@ -579,7 +587,7 @@ const ProductsManagement = () => {
                         />
                       </Box>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         <IconButton size="small" color="primary" onClick={() => handleOpenDetail(product)} title="Ver Detalle">
                           <Eye size={18} />
@@ -729,22 +737,22 @@ const ProductsManagement = () => {
                   <Grid size={6}>
                     <TextField
                       fullWidth
-                      required
-                      label="Costo base ($)"
+                      label="Stock"
                       type="number"
-                      inputProps={{ min: 0, step: 'any' }}
-                      value={formValues.cost_price}
-                      onChange={(e) => setFormValues({ ...formValues, cost_price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      helperText="Lo que pagaste por el producto"
+                      value={formValues.stock}
+                      onChange={(e) => setFormValues({ ...formValues, stock: e.target.value === '' ? '' : parseInt(e.target.value) })}
                     />
                   </Grid>
                   <Grid size={6}>
                     <TextField
                       fullWidth
-                      label="Stock"
+                      required
+                      label="Precio base ($)"
                       type="number"
-                      value={formValues.stock}
-                      onChange={(e) => setFormValues({ ...formValues, stock: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                      inputProps={{ min: 0, step: 'any' }}
+                      value={formValues.cost_price}
+                      onChange={(e) => setFormValues({ ...formValues, cost_price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+                      helperText="Lo que pagaste por el producto"
                     />
                   </Grid>
                   <Grid size={6}>
@@ -1030,90 +1038,107 @@ const ProductsManagement = () => {
 
                   {/* Financial & Stock Metrics Panel */}
                   <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#fbfbfb', border: '1px solid rgba(0,0,0,0.06)' }}>
-                    <Grid container spacing={3}>
+                    <Grid container spacing={{ xs: 1.75, sm: 3 }}>
                       {/* Price Info */}
-                      <Grid size={{ xs: 6, sm: 6 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
-                          Precio de Venta
-                        </Typography>
-                        {productForDetail.discount && productForDetail.discount > 0 ? (
-                          <Box>
-                            <Typography variant="h5" sx={{ fontWeight: 800, color: 'error.main' }}>
-                              ${(productForDetail.price * (1 - productForDetail.discount / 100)).toLocaleString('es-ES')}
-                            </Typography>
-                            <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', display: 'block' }}>
-                              Original: ${productForDetail.price.toLocaleString('es-ES')}
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                            ${productForDetail.price.toLocaleString('es-ES')}
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Stack direction={{ xs: 'row', sm: 'column' }} alignItems={{ xs: 'baseline', sm: 'flex-start' }} spacing={{ xs: 1, sm: 0 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+                            Precio de Venta:
                           </Typography>
-                        )}
+                          {productForDetail.discount && productForDetail.discount > 0 ? (
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: 1, rowGap: 0.25 }}>
+                              <Typography variant="h5" sx={{ fontWeight: 800, color: 'error.main', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
+                                ${(productForDetail.price * (1 - productForDetail.discount / 100)).toLocaleString('es-ES')}
+                              </Typography>
+                              <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', whiteSpace: 'nowrap', fontSize: { xs: '0.82rem', sm: '0.9rem' } }}>
+                                ${productForDetail.price.toLocaleString('es-ES')}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
+                              ${productForDetail.price.toLocaleString('es-ES')}
+                            </Typography>
+                          )}
+                        </Stack>
                       </Grid>
 
+                      {/* Discount */}
+                      {productForDetail.discount && productForDetail.discount > 0 && (
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <Stack direction={{ xs: 'row', sm: 'column' }} alignItems={{ xs: 'baseline', sm: 'flex-start' }} spacing={{ xs: 1, sm: 0 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+                              Descuento:
+                            </Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: 'error.main', fontSize: { xs: '1.08rem', sm: '1.25rem' }, lineHeight: 1.15 }}>
+                              {productForDetail.discount}% OFF
+                            </Typography>
+                          </Stack>
+                        </Grid>
+                      )}
+
                       {/* Cost Price */}
-                      <Grid size={{ xs: 6, sm: 6 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
-                          Costo Base
-                        </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                          ${productForDetail.cost_price != null ? productForDetail.cost_price.toLocaleString('es-ES') : '0'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Precio de compra
-                        </Typography>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Stack direction={{ xs: 'row', sm: 'column' }} alignItems={{ xs: 'baseline', sm: 'flex-start' }} spacing={{ xs: 1, sm: 0 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+                            Costo Base:
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
+                            ${productForDetail.cost_price != null ? productForDetail.cost_price.toLocaleString('es-ES') : '0'}
+                          </Typography>
+                        </Stack>
                       </Grid>
 
                       {/* Margin / Profitability */}
                       {productForDetail.cost_price != null && productForDetail.cost_price > 0 && (
-                        <Grid size={{ xs: 6, sm: 6 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
-                            Ganancia / Margen
-                          </Typography>
-                          {(() => {
-                            const sellPrice = productForDetail.discount && productForDetail.discount > 0
-                              ? productForDetail.price * (1 - productForDetail.discount / 100)
-                              : productForDetail.price;
-                            const profitAmt = sellPrice - productForDetail.cost_price;
-                            const profitPercent = (profitAmt / productForDetail.cost_price) * 100;
-                            const isNegative = profitAmt < 0;
-                            return (
-                              <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 800, color: isNegative ? 'error.main' : 'success.main' }}>
-                                  {isNegative ? '-' : '+'}${Math.abs(profitAmt).toLocaleString('es-ES')}
-                                </Typography>
-                                <Typography variant="caption" sx={{ fontWeight: 750, color: isNegative ? 'error.main' : 'success.main' }}>
-                                  {profitPercent.toFixed(1)}% {isNegative ? 'pérdida' : 'retorno'}
-                                </Typography>
-                              </Box>
-                            );
-                          })()}
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <Stack direction={{ xs: 'row', sm: 'column' }} alignItems={{ xs: 'baseline', sm: 'flex-start' }} spacing={{ xs: 1, sm: 0 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+                              Ganancia:
+                            </Typography>
+                            {(() => {
+                              const sellPrice = productForDetail.discount && productForDetail.discount > 0
+                                ? productForDetail.price * (1 - productForDetail.discount / 100)
+                                : productForDetail.price;
+                              const profitAmt = sellPrice - productForDetail.cost_price;
+                              const isNegative = profitAmt < 0;
+                              return (
+                                <Box>
+                                  <Typography variant="h6" sx={{ fontWeight: 800, color: isNegative ? 'error.main' : 'success.main', fontSize: { xs: '1.08rem', sm: '1.25rem' }, lineHeight: 1.15 }}>
+                                    {isNegative ? '-' : '+'}${Math.abs(profitAmt).toLocaleString('es-ES')}
+                                  </Typography>
+                                </Box>
+                              );
+                            })()}
+                          </Stack>
                         </Grid>
                       )}
 
                       {/* Stock Info */}
-                      <Grid size={{ xs: 6, sm: 6 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
-                          Stock y Estado
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-                          {productForDetail.stock} unid.
-                        </Typography>
-                        <Chip
-                          label={
-                            productForDetail.stock === 0 ? 'Sin Stock' :
-                              productForDetail.stock < 5 ? 'Bajo Stock' :
-                                'En Stock'
-                          }
-                          size="small"
-                          color={
-                            productForDetail.stock === 0 ? 'error' :
-                              productForDetail.stock < 5 ? 'warning' :
-                                'success'
-                          }
-                          sx={{ fontWeight: 700, height: 22 }}
-                        />
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Stack direction={{ xs: 'row', sm: 'column' }} alignItems={{ xs: 'baseline', sm: 'flex-start' }} spacing={{ xs: 1, sm: 0 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+                            Stock:
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', fontSize: { xs: '1.08rem', sm: '1.25rem' }, lineHeight: 1.15 }}>
+                              {productForDetail.stock} unid.
+                            </Typography>
+                            <Chip
+                              label={
+                                productForDetail.stock === 0 ? 'Sin Stock' :
+                                  productForDetail.stock < 5 ? 'Bajo Stock' :
+                                    'En Stock'
+                              }
+                              size="small"
+                              color={
+                                productForDetail.stock === 0 ? 'error' :
+                                  productForDetail.stock < 5 ? 'warning' :
+                                    'success'
+                              }
+                              sx={{ fontWeight: 700, height: 22 }}
+                            />
+                          </Box>
+                        </Stack>
                       </Grid>
                     </Grid>
                   </Paper>

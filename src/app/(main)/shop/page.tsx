@@ -97,6 +97,10 @@ const ShopContent = () => {
         if (selectedCat) {
           const allowedIds = getRecursiveIds(selectedCat.id, categories);
           query = query.in('category_id', allowedIds);
+        } else {
+          // Si se especificó una categoría pero no existe en la base de datos,
+          // forzamos a que no traiga productos en vez de mostrar todo (por ej. consolas).
+          query = query.eq('category_id', '00000000-0000-0000-0000-000000000000');
         }
       } else if (!category && categories.length > 0) {
         const specialCats = categories.filter(c => {

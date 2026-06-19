@@ -51,8 +51,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) =
     e.preventDefault();
     e.stopPropagation();
 
-    const finalPrice = product.discount > 0 
-      ? product.price * (1 - product.discount / 100) 
+    const finalPrice = product.discount > 0
+      ? product.price * (1 - product.discount / 100)
       : product.price;
 
     const priceDetails = product.discount > 0
@@ -302,7 +302,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid' }) =
                   {isAdded ? 'Agregado' : isMaxStockReached ? 'Sin Stock' : 'Añadir'}
                 </Box>
                 <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                  {isAdded ? 'Agregado al carrito' : isMaxStockReached ? 'Límite de Stock' : 'Añadir al Carrito'}
+                  {isAdded ? 'Agregado al carrito' : isMaxStockReached ? 'Sin Stock' : 'Añadir al Carrito'}
                 </Box>
               </Button>
             </motion.div>
