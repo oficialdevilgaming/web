@@ -154,25 +154,42 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
 
   const handleSubmit = async () => {
     setSaving(true);
-    const { data, error } = await supabase.from('orders').insert([{
-      customer_name: contactName.trim(),
-      phone: contactPhone.trim(),
-      email: contactEmail.trim(),
-      address: address.trim(),
-      city: city.trim(),
-      zip_code: zipCode.trim(),
-      items: cartItems,
-      total,
-      status: 'Pendiente',
-      created_at: new Date(orderDate).toISOString(),
-    }]).select('id').single();
+    try {
+      const { data, error } = await supabase.from('orders').insert([{
+        customer_name: contactName.trim(),
+        phone: contactPhone.trim(),
+        email: contactEmail.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        zip_code: zipCode.trim(),
+        items: cartItems,
+        total,
+        status: 'Pendiente',
+        created_at: new Date(orderDate).toISOString(),
+      }]).select('id').single();
 
-    setSaving(false);
-    if (!error && data) {
+      if (error || !data) {
+        showAlert('Error al crear el pedido: ' + (error?.message || 'Error desconocido'));
+        return;
+      }
+
+      // Descontar stock inmediatamente (Reserva Inmediata)
+      for (const item of cartItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+        if (product) {
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+        }
+      }
+
       onCreated();
       handleReset();
-    } else {
-      showAlert('Error al crear el pedido: ' + (error?.message || 'Error desconocido'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -653,10 +670,14 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
 
           const stockMap = new Map(productsData?.map(p => [p.id, p.stock]) || []);
 
-          setCartItems(items.map((i: any) => ({
-            ...i,
-            stock: stockMap.get(i.id) ?? 9999
-          })));
+          // El stock efectivo disponible = stock en BD + cantidad ya reservada en este pedido
+          // (porque al editar devolveremos y retomaremos el stock según la diferencia)
+          const isActive = order.status !== 'Cancelado';
+          setCartItems(items.map((i: any) => {
+            const dbStock = stockMap.get(i.id) ?? 9999;
+            const effectiveStock = isActive ? dbStock + i.quantity : dbStock;
+            return { ...i, stock: effectiveStock };
+          }));
         } else {
           setCartItems([]);
         }
@@ -697,7 +718,13 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const handleAddProduct = (product: Product) => {
     const existing = cartItems.find(i => i.id === product.id);
     if (existing) {
-      if (existing.quantity + 1 > product.stock) {
+      // Para pedidos activos el stock de BD ya fue descontado por esta reserva,
+      // por lo que el límite efectivo = stock_BD + unidades_ya_en_pedido
+      const isActive = order?.status !== 'Cancelado';
+      const effectiveLimit = isActive
+        ? product.stock + existing.quantity
+        : product.stock;
+      if (existing.quantity + 1 > effectiveLimit) {
         showAlert(`No se puede agregar más unidades. El stock disponible de "${product.name}" es ${product.stock}.`);
         return;
       }
@@ -730,27 +757,62 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const handleUpdate = async () => {
     if (!order) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        customer_name: contactName.trim(),
-        phone: contactPhone.trim(),
-        email: contactEmail.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        zip_code: zipCode.trim(),
-        items: cartItems,
-        total,
-        created_at: new Date(orderDate).toISOString(),
-      })
-      .eq('id', order.id);
 
-    setSaving(false);
-    if (!error) {
-      onUpdated();
-      onClose();
-    } else {
-      showAlert('Error al actualizar el pedido: ' + error.message);
+    try {
+      // Ajuste de stock sólo si el pedido es activo (no cancelado)
+      if (order.status !== 'Cancelado') {
+        const originalItems: OrderItem[] = order.items || [];
+        const originalMap = new Map(originalItems.map((i: OrderItem) => [i.id, i.quantity]));
+        const newMap = new Map(cartItems.map((i: OrderItem) => [i.id, i.quantity]));
+
+        // Recopilar todos los IDs involucrados
+        const allIds = new Set([...originalMap.keys(), ...newMap.keys()]);
+
+        for (const productId of allIds) {
+          const oldQty = originalMap.get(productId) || 0;
+          const newQty = newMap.get(productId) || 0;
+          const diff = newQty - oldQty;
+
+          if (diff === 0) continue;
+
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', productId)
+            .single();
+
+          if (product) {
+            const updatedStock = Math.max(0, product.stock - diff);
+            await supabase.from('products').update({ stock: updatedStock }).eq('id', productId);
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          customer_name: contactName.trim(),
+          phone: contactPhone.trim(),
+          email: contactEmail.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          zip_code: zipCode.trim(),
+          items: cartItems,
+          total,
+          created_at: new Date(orderDate).toISOString(),
+        })
+        .eq('id', order.id);
+
+      if (!error) {
+        onUpdated();
+        onClose();
+      } else {
+        showAlert('Error al actualizar el pedido: ' + error.message);
+      }
+    } catch (err: any) {
+      showAlert('Error al actualizar el pedido: ' + (err?.message || 'Error desconocido'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1126,6 +1188,8 @@ const OrdersManagement = () => {
   // Removed client-side filteredOrders and pagedOrders memos
 
   const handleStatusChange = async (id: string, newStatus: string) => {
+    const ACTIVE_STATUSES = ['Pendiente', 'Enviado', 'Pagado', 'Entregado'];
+
     try {
       // 1. Obtener los datos actuales del pedido
       const { data: order, error: fetchErr } = await supabase
@@ -1135,82 +1199,60 @@ const OrdersManagement = () => {
         .single();
 
       if (fetchErr || !order) {
-        console.error("Error al obtener pedido para cambiar estado:", fetchErr);
+        console.error('Error al obtener pedido para cambiar estado:', fetchErr);
         return;
       }
 
       const oldStatus = order.status;
       const items = order.items || [];
 
-      // Si pasa a 'Entregado' desde cualquier otro estado
-      if (oldStatus !== 'Entregado' && newStatus === 'Entregado') {
-        // Reducir stock
+      const wasActive = ACTIVE_STATUSES.includes(oldStatus);
+      const willBeActive = ACTIVE_STATUSES.includes(newStatus);
+
+      // Activo → Cancelado: devolver stock
+      if (wasActive && newStatus === 'Cancelado') {
         for (const item of items) {
           const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
-
+            .from('products').select('stock').eq('id', item.id).single();
           if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = Math.max(0, currentStock - item.quantity);
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
+            await supabase.from('products')
+              .update({ stock: (product.stock || 0) + item.quantity })
               .eq('id', item.id);
           }
         }
-
-        // También actualizamos la fecha de entrega (delivered_at) a la fecha actual
-        const nowStr = new Date().toISOString();
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: nowStr })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
       }
-      // Si sale de 'Entregado' hacia cualquier otro estado
-      else if (oldStatus === 'Entregado' && newStatus !== 'Entregado') {
-        // Devolver stock
+
+      // Cancelado → Activo: descontar stock
+      if (oldStatus === 'Cancelado' && willBeActive) {
         for (const item of items) {
           const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
-
+            .from('products').select('stock').eq('id', item.id).single();
           if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = currentStock + item.quantity;
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
+            await supabase.from('products')
+              .update({ stock: Math.max(0, (product.stock || 0) - item.quantity) })
               .eq('id', item.id);
           }
         }
-
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus, delivered_at: null })
-          .eq('id', id);
-
-        if (updateErr) throw updateErr;
       }
-      // Cualquier otra transición de estado intermedia (ej. Pendiente -> Enviado, Pagado, etc.)
-      else {
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update({ status: newStatus })
-          .eq('id', id);
 
-        if (updateErr) throw updateErr;
+      // Actualizar estado del pedido (y delivered_at si aplica)
+      const updatePayload: Record<string, any> = { status: newStatus };
+      if (newStatus === 'Entregado') {
+        updatePayload.delivered_at = new Date().toISOString();
+      } else if (oldStatus === 'Entregado') {
+        updatePayload.delivered_at = null;
       }
+
+      const { error: updateErr } = await supabase
+        .from('orders')
+        .update(updatePayload)
+        .eq('id', id);
+
+      if (updateErr) throw updateErr;
 
       fetchOrders();
     } catch (err) {
-      console.error("Error al procesar el cambio de estado:", err);
+      console.error('Error al procesar el cambio de estado:', err);
     }
   };
 
@@ -1243,6 +1285,20 @@ const OrdersManagement = () => {
 
   const handleDeleteConfirm = async () => {
     if (!orderToDelete) return;
+
+    // Si el pedido era activo (no cancelado), devolver stock de sus items
+    if (orderToDelete.status !== 'Cancelado') {
+      for (const item of (orderToDelete.items || [])) {
+        const { data: product } = await supabase
+          .from('products').select('stock').eq('id', item.id).single();
+        if (product) {
+          await supabase.from('products')
+            .update({ stock: (product.stock || 0) + item.quantity })
+            .eq('id', item.id);
+        }
+      }
+    }
+
     await supabase.from('orders').delete().eq('id', orderToDelete.id);
     setDeleteDialogOpen(false);
     setOrderToDelete(null);

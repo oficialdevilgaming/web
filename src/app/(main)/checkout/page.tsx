@@ -64,7 +64,29 @@ const CheckoutPage = () => {
 
   const handleNext = async () => {
     if (activeStep === 0) {
-      // 1. Save to Supabase
+      // 1. Validar stock disponible antes de crear el pedido
+      const itemIds = state.items.map((item: any) => item.id);
+      const { data: productsStock } = await supabase
+        .from('products')
+        .select('id, name, stock')
+        .in('id', itemIds);
+
+      if (productsStock) {
+        const stockMap = new Map(productsStock.map((p: any) => [p.id, p]));
+        for (const item of state.items) {
+          const product = stockMap.get(item.id) as any;
+          if (!product || product.stock < item.quantity) {
+            const available = product?.stock ?? 0;
+            setErrorModalMsg(
+              `Stock insuficiente para "${item.name}". Solicitás ${item.quantity} unidad(es) pero solo hay ${available} disponible(s).`
+            );
+            setErrorModalOpen(true);
+            return;
+          }
+        }
+      }
+
+      // 2. Registrar pedido en Supabase
       const newOrder = {
         customer_name: `${formData.firstName} ${formData.lastName}`,
         phone: formData.phone,
@@ -74,7 +96,7 @@ const CheckoutPage = () => {
         zip_code: formData.zipCode,
         total: total,
         status: 'Pendiente',
-        items: state.items.map(item => ({
+        items: state.items.map((item: any) => ({
           id: item.id,
           name: item.name,
           quantity: item.quantity,
@@ -93,14 +115,23 @@ const CheckoutPage = () => {
 
       const orderId = data.id;
 
-      // 2. Format WhatsApp Message
+      // 3. Descontar stock inmediatamente (Reserva Inmediata)
+      for (const item of state.items) {
+        const product = (productsStock ?? []).find((p: any) => p.id === item.id) as any;
+        if (product) {
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+        }
+      }
+
+      // 4. Armar mensaje de WhatsApp
       const message = `*NUEVO PEDIDO: #${orderId}*\n\n` +
         `*Cliente:* ${formData.firstName} ${formData.lastName}\n` +
         `*Email:* ${formData.email}\n` +
         `*Teléfono:* ${formData.phone}\n` +
         `*Dirección:* ${formData.address}, ${formData.city}\n\n` +
         `*Productos:*\n` +
-        state.items.map(item => {
+        state.items.map((item: any) => {
           const effPrice = item.price * (1 - (item.discount || 0) / 100);
           const priceDetail = item.discount && item.discount > 0
             ? `$${effPrice.toLocaleString('es-ES', { maximumFractionDigits: 0 })} (con ${item.discount}% OFF, antes $${item.price.toLocaleString('es-ES')})`
@@ -112,7 +143,7 @@ const CheckoutPage = () => {
       const generatedLink = `https://wa.me/5491155099149?text=${encodeURIComponent(message)}`;
       setWhatsappUrl(generatedLink);
 
-      // 3. Clear Cart and go to confirmation
+      // 5. Limpiar carrito y avanzar a confirmación
       dispatch({ type: 'CLEAR_CART' });
       setActiveStep(1);
 
