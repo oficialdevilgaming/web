@@ -96,6 +96,7 @@ const BannersManagement = () => {
   }, []);
 
   const filteredBanners = useMemo(() => {
+    if (!searchTerm.trim()) return banners;
     return banners.filter(b => {
       const search = searchTerm.toLowerCase();
       const titleMatch = b.title?.toLowerCase().includes(search) || false;

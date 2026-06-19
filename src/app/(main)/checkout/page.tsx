@@ -62,6 +62,17 @@ const CheckoutPage = () => {
   const shipping = subtotal > 500 ? 0 : 15;
   const total = subtotal + shipping;
 
+  const isFormValid =
+    formData.firstName &&
+    formData.lastName &&
+    formData.phone &&
+    formData.email &&
+    formData.address &&
+    formData.city &&
+    formData.zipCode;
+
+  const isCartValid = state.items.length > 0;
+
   const handleNext = async () => {
     if (activeStep === 0) {
       // 1. Validar stock disponible antes de crear el pedido
@@ -88,32 +99,66 @@ const CheckoutPage = () => {
 
       // 2. Registrar pedido en Supabase
       const newOrder = {
-        customer_name: `${formData.firstName} ${formData.lastName}`,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        zip_code: formData.zipCode,
-        total: total,
+        customer_name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
+        phone: formData.phone || '',
+        email: formData.email || '',
+        address: formData.address || '',
+        city: formData.city || '',
+        zip_code: formData.zipCode || '',
+        total: Number(total) || 0,
         status: 'Pendiente',
-        items: state.items.map((item: any) => ({
+        items: (state.items || []).map(item => ({
           id: item.id,
           name: item.name,
-          quantity: item.quantity,
-          price: item.price * (1 - (item.discount || 0) / 100)
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) * (1 - (item.discount || 0) / 100)
         }))
       };
 
-      const { data, error } = await supabase.from('orders').insert([newOrder]).select('id').single();
-
-      if (error || !data) {
-        console.error('Error saving order:', error);
-        setErrorModalMsg('Hubo un error al registrar el pedido. Intenta nuevamente.');
+      if (!isFormValid) {
+        setErrorModalMsg('Completa todos los campos antes de continuar.');
         setErrorModalOpen(true);
         return;
       }
 
+      if (!isCartValid) {
+        setErrorModalMsg('Tu carrito está vacío.');
+        setErrorModalOpen(true);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([newOrder])
+        .select('id')
+        .single();
+
+      if (error || !data) {
+        console.error('Order insert error:', error);
+        setErrorModalMsg(error?.message || 'Error al registrar el pedido');
+        setErrorModalOpen(true);
+        return;
+      }
       const orderId = data.id;
+
+      // Descontar el stock de los productos comprados
+      for (const item of state.items) {
+        const { data: product, error } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (!product || error) continue;
+
+        const currentStock = product.stock || 0;
+        const newStock = Math.max(0, currentStock - (item.quantity || 0));
+
+        await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+      }
 
       // 3. Descontar stock inmediatamente (Reserva Inmediata)
       for (const item of state.items) {
