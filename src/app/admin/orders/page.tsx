@@ -1459,7 +1459,7 @@ const OrdersManagement = () => {
                 </TableRow>
               ) : orders.map((order) => (
                 <Fragment key={order.id}>
-                  <TableRow hover>
+                  <TableRow hover onClick={() => handleViewDetail(order)} sx={{ cursor: 'pointer' }}>
                     <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>#{order.id}</TableCell>
                     <TableCell sx={{ fontWeight: 500 }}>
                       <Box>
@@ -1467,7 +1467,7 @@ const OrdersManagement = () => {
                         {/* Mobile: botón para expandir detalles */}
                         <Box
                           component="button"
-                          onClick={() => toggleRow(order.id)}
+                          onClick={(e: React.MouseEvent) => { e.stopPropagation(); toggleRow(order.id); }}
                           sx={{
                             display: { xs: 'flex', md: 'none' },
                             alignItems: 'center',
@@ -1505,7 +1505,7 @@ const OrdersManagement = () => {
                       {order.delivered_at ? new Date(order.delivered_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '−'}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
                       <Select
                         size="small"
                         value={order.status}
@@ -1537,7 +1537,7 @@ const OrdersManagement = () => {
                         <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
                       </Select>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton size="small" onClick={() => handleViewDetail(order)} aria-label="Ver detalles">
                           <Eye size={18} />

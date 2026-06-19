@@ -526,7 +526,7 @@ const ProductsManagement = () => {
                 </TableRow>
               ) : allProducts.map((product: Product) => (
                 <Fragment key={product.id}>
-                  <TableRow hover>
+                  <TableRow hover onClick={() => handleOpenDetail(product)} sx={{ cursor: 'pointer' }}>
                     <TableCell>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Box>
@@ -534,7 +534,7 @@ const ProductsManagement = () => {
                           {/* Mobile: botón para expandir detalles */}
                           <Box
                             component="button"
-                            onClick={() => toggleRow(product.id)}
+                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); toggleRow(product.id); }}
                             sx={{
                               display: { xs: 'flex', md: 'none' },
                               alignItems: 'center',
@@ -587,7 +587,7 @@ const ProductsManagement = () => {
                         />
                       </Box>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         <IconButton size="small" color="primary" onClick={() => handleOpenDetail(product)} title="Ver Detalle">
                           <Eye size={18} />
@@ -737,22 +737,22 @@ const ProductsManagement = () => {
                   <Grid size={6}>
                     <TextField
                       fullWidth
-                      required
-                      label="Costo base ($)"
+                      label="Stock"
                       type="number"
-                      inputProps={{ min: 0, step: 'any' }}
-                      value={formValues.cost_price}
-                      onChange={(e) => setFormValues({ ...formValues, cost_price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                      helperText="Lo que pagaste por el producto"
+                      value={formValues.stock}
+                      onChange={(e) => setFormValues({ ...formValues, stock: e.target.value === '' ? '' : parseInt(e.target.value) })}
                     />
                   </Grid>
                   <Grid size={6}>
                     <TextField
                       fullWidth
-                      label="Stock"
+                      required
+                      label="Precio base ($)"
                       type="number"
-                      value={formValues.stock}
-                      onChange={(e) => setFormValues({ ...formValues, stock: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                      inputProps={{ min: 0, step: 'any' }}
+                      value={formValues.cost_price}
+                      onChange={(e) => setFormValues({ ...formValues, cost_price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+                      helperText="Lo que pagaste por el producto"
                     />
                   </Grid>
                   <Grid size={6}>
