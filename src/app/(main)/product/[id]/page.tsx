@@ -573,6 +573,15 @@ export default function ProductDetailPage() {
   const [carouselIndex, setCarouselIndex] = useState(0);
 
   useEffect(() => {
+    const resetScroll = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+    resetScroll();
+    const frame = requestAnimationFrame(resetScroll);
+
+    return () => cancelAnimationFrame(frame);
+  }, [id]);
+
+  useEffect(() => {
     setImageLoaded(false);
   }, [selectedImage]);
 
