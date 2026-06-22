@@ -705,7 +705,7 @@ export default function ProductDetailPage() {
   const trustItems = [
     { icon: <Star size={20} />, label: 'Catálogo Premium', sub: 'Lo mejor para tu setup' },
     { icon: <Headphones size={20} />, label: 'Asistencia', sub: 'Te asesoramos por WhatsApp' },
-    { icon: <Zap size={20} />, label: 'Gaming Experts', sub: 'Sabemos lo que necesitás' },
+    { icon: <Zap size={20} />, label: 'Expertos en Gaming', sub: 'Sabemos lo que necesitás' },
   ];
 
   return (

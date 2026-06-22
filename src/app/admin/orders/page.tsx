@@ -392,7 +392,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
 
                 <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.08)', bgcolor: 'white', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Total Estimado:</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Total:</Typography>
                     <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>${total.toLocaleString('es-ES')}</Typography>
                   </Box>
                 </Box>
@@ -1074,7 +1074,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
           disabled={saving || !contactName.trim() || !contactPhone.trim() || cartItems.length === 0}
           sx={{ fontWeight: 700, px: 4 }}
         >
-          {saving ? 'Guardando...' : 'Guardar Cambios'}
+          {saving ? 'Guardando...' : 'Guardar'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1850,7 +1850,7 @@ const OrdersManagement = () => {
             <Divider />
 
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>Total Pagado</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>Total</Typography>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>
                 ${Number(selectedOrder?.total).toLocaleString('es-ES')}
               </Typography>

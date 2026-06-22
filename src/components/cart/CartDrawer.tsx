@@ -47,10 +47,10 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, onClose }) => {
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400 }, bgcolor: '#fff' }
+        sx: { width: { xs: '100%', sm: 400 }, bgcolor: '#fff', overflow: 'hidden' }
       }}
     >
-      <Box sx={{ h: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
           <Stack direction="row" spacing={1} alignItems="center">
@@ -63,7 +63,17 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, onClose }) => {
         </Box>
 
         {/* Content */}
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+        <Box sx={{
+          flexGrow: 1,
+          overflowY: 'auto',
+          p: 2,
+          '&::-webkit-scrollbar': { width: '4px' },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { background: 'rgba(0,0,0,0.15)', borderRadius: '4px' },
+          '&::-webkit-scrollbar-thumb:hover': { background: 'rgba(0,0,0,0.25)' },
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(226, 7, 7, 0.98) transparent'
+        }}>
           {state.items.length === 0 ? (
             <Box sx={{ py: 10, textAlign: 'center' }}>
               <ShoppingBag size={64} color="rgba(0,0,0,0.1)" strokeWidth={1} style={{ marginBottom: '16px' }} />

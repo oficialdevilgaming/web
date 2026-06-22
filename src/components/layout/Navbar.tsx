@@ -507,40 +507,146 @@ const Navbar = () => {
 
           {/* Mobile Search Bar */}
           <Box sx={{ display: { xs: 'block', md: 'none' }, px: 2, pb: 1.5 }}>
-            <Box sx={{ position: 'relative' }}>
-              <SearchWrapper sx={{ maxWidth: '100%', ml: 0, mr: 0 }}>
-                <SearchIconWrapper>
-                  <Search size={16} />
-                </SearchIconWrapper>
-                <StyledInputBase
-                  placeholder="Buscar productos..."
-                  inputProps={{ 'aria-label': 'search' }}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSearchSubmit(e);
+            <ClickAwayListener onClickAway={() => setShowDropdown(false)}>
+              <Box sx={{ position: 'relative' }}>
+                <SearchWrapper sx={{ maxWidth: '100%', ml: 0, mr: 0 }}>
+                  <SearchIconWrapper>
+                    <Search size={16} />
+                  </SearchIconWrapper>
+                  <StyledInputBase
+                    placeholder="Buscar productos..."
+                    inputProps={{ 'aria-label': 'search' }}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => {
+                      if (searchQuery.trim().length >= 3) setShowDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearchSubmit(e);
+                        setShowDropdown(false);
+                      }
+                    }}
+                    endAdornment={
+                      searchQuery ? (
+                        <InputAdornment position="end" sx={{ mr: 1 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSearchQuery('');
+                              setSearchResults([]);
+                              setShowDropdown(false);
+                            }}
+                            sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}
+                          >
+                            <X size={16} />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null
                     }
-                  }}
-                  endAdornment={
-                    searchQuery ? (
-                      <InputAdornment position="end" sx={{ mr: 1 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSearchQuery('');
-                            setSearchResults([]);
-                          }}
-                          sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}
-                        >
-                          <X size={16} />
-                        </IconButton>
-                      </InputAdornment>
-                    ) : null
-                  }
-                />
-              </SearchWrapper>
-            </Box>
+                  />
+                </SearchWrapper>
+                <AnimatePresence>
+                  {showDropdown && searchQuery.trim().length >= 3 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '8px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                        backdropFilter: 'blur(10px)',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                        zIndex: 1000,
+                        overflow: 'hidden',
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        color: 'black'
+                      }}
+                    >
+                      {isSearching ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                          <Loader2 className="animate-spin" size={24} color="#cc0000" />
+                        </Box>
+                      ) : searchResults.length > 0 ? (
+                        <List disablePadding>
+                          {searchResults.map((product) => (
+                            <ListItem
+                              key={product.id}
+                              disablePadding
+                              sx={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}
+                            >
+                              <ListItemButton
+                                onClick={() => {
+                                  router.push(`/product/${product.id}`);
+                                  setShowDropdown(false);
+                                  setSearchQuery('');
+                                }}
+                                sx={{ py: 1.5, px: 2, '&:hover': { bgcolor: 'rgba(204,0,0,0.04)' } }}
+                              >
+                                <ListItemAvatar>
+                                  <Avatar
+                                    src={getCDNUrl(product.images?.[0])}
+                                    variant="rounded"
+                                    sx={{ width: 40, height: 40, bgcolor: '#f4f4f4', objectFit: 'contain' }}
+                                  />
+                                </ListItemAvatar>
+                                <ListItemText
+                                  primary={product.name}
+                                  secondary={
+                                    product.discount && product.discount > 0 ? (
+                                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                        <Typography component="span" sx={{ fontWeight: 800, color: 'primary.main', fontSize: '0.8rem' }}>
+                                          ${(product.price * (1 - product.discount / 100)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                                        </Typography>
+                                        <Typography component="span" sx={{ textDecoration: 'line-through', color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+                                          ${product.price.toLocaleString('es-ES')}
+                                        </Typography>
+                                        <Typography component="span" sx={{ fontWeight: 700, color: 'error.main', fontSize: '0.75rem' }}>
+                                          {product.discount}% OFF
+                                        </Typography>
+                                      </Box>
+                                    ) : (
+                                      <Typography component="span" sx={{ fontWeight: 800, color: 'primary.main', fontSize: '0.8rem' }}>
+                                        ${product.price.toLocaleString('es-ES')}
+                                      </Typography>
+                                    )
+                                  }
+                                  primaryTypographyProps={{ fontWeight: 700, fontSize: '0.85rem', color: 'text.primary', noWrap: true }}
+                                />
+                              </ListItemButton>
+                            </ListItem>
+                          ))}
+                          <ListItem disablePadding>
+                            <ListItemButton
+                              onClick={(e) => {
+                                handleSearchSubmit(e as any);
+                                setShowDropdown(false);
+                              }}
+                              sx={{ py: 1.5, justifyContent: 'center', bgcolor: '#fafafa', '&:hover': { bgcolor: '#f0f0f0' } }}
+                            >
+                              <Typography variant="caption" fontWeight={800} color="secondary.main">
+                                Ver todos los resultados
+                              </Typography>
+                            </ListItemButton>
+                          </ListItem>
+                        </List>
+                      ) : (
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                            No se encontraron productos para &quot;{searchQuery}&quot;
+                          </Typography>
+                        </Box>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Box>
+            </ClickAwayListener>
           </Box>
 
           {/* BOTTOM TIER */}

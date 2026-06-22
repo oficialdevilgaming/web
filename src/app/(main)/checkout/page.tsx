@@ -191,6 +191,7 @@ const CheckoutPage = () => {
       // 5. Limpiar carrito y avanzar a confirmación
       dispatch({ type: 'CLEAR_CART' });
       setActiveStep(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
       window.open(generatedLink, '_blank');
     }
@@ -248,7 +249,7 @@ const CheckoutPage = () => {
   );
 
   const renderConfirmation = () => (
-    <Box sx={{ textAlign: 'center', py: 6 }}>
+    <Box sx={{ textAlign: 'center', py: 3 }}>
       <CheckCircle2 size={80} color="#4caf50" style={{ marginBottom: '24px' }} />
       <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>¡Pedido Registrado!</Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 500, mx: 'auto' }}>
@@ -278,7 +279,7 @@ const CheckoutPage = () => {
   );
 
   return (
-    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '100vh', py: { xs: 4, md: 7 } }}>
+    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '80vh', py: { xs: 4, md: 7 } }}>
       <Container maxWidth="lg">
         {activeStep < 1 ? (
           <>

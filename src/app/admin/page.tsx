@@ -8,7 +8,6 @@ import {
   Typography,
   Stack,
   CircularProgress,
-  IconButton,
   ToggleButton,
   ToggleButtonGroup,
   Button,
@@ -28,7 +27,6 @@ import {
   History,
   Calendar,
   ShoppingBag,
-  ArrowRight,
   ArrowUpRight,
   Banknote,
   ChevronDown
@@ -44,6 +42,7 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { GraphicEq } from '@mui/icons-material';
 
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -59,6 +58,7 @@ const getDaysAgo = (days: number) => {
 };
 
 const Dashboard = () => {
+  const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -222,9 +222,9 @@ const Dashboard = () => {
     // Stock Crítico (Usamos el count traído de la DB)
     const lowStock = lowStockCount;
 
-    // Pedidos Pendientes (Últimos 5 creados en el rango)
+    // Pedidos no entregados (Últimos 5 creados en el rango)
     const lastPendingOrders = rangeOrders
-      .filter(o => o.status === 'Pendiente')
+      .filter(o => o.status !== 'Entregado')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
 
@@ -531,7 +531,7 @@ const Dashboard = () => {
             <Box sx={{ p: 3, borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <History size={20} color="#666" />
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>Últimos Pendientes</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>Últimos Pedidos</Typography>
               </Stack>
             </Box>
             <Box sx={{ p: 0 }}>
@@ -542,20 +542,32 @@ const Dashboard = () => {
                       <th style={{ padding: '12px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#666' }}>FECHA</th>
                       <th style={{ padding: '12px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#666' }}>CLIENTE</th>
                       <th style={{ padding: '12px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#666' }}>TOTAL</th>
-                      <th style={{ padding: '12px 24px', fontSize: '0.75rem', fontWeight: 700, color: '#666' }}>ACCION</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {metrics.lastPendingOrders.map((order) => (
-                      <tr key={order.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                        <td style={{ padding: '16px 24px', fontSize: '0.8rem', color: '#666' }}>{formatDisplay(order.created_at)}</td>
-                        <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 600 }}>{order.customer_name}</td>
-                        <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700 }}>${order.total}</td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <IconButton size="small" component={Link} href={`/admin/orders?orderId=${encodeURIComponent(order.id)}`} color="primary"><ArrowRight size={18} /></IconButton>
-                        </td>
-                      </tr>
-                    ))}
+                    {metrics.lastPendingOrders.map((order) => {
+                      const orderUrl = `/admin/orders?orderId=${encodeURIComponent(order.id)}`;
+
+                      return (
+                        <tr
+                          key={order.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.push(orderUrl)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              router.push(orderUrl);
+                            }
+                          }}
+                          style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer' }}
+                        >
+                          <td style={{ padding: '16px 24px', fontSize: '0.8rem', color: '#666' }}>{formatDisplay(order.created_at)}</td>
+                          <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 600 }}>{order.customer_name}</td>
+                          <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700 }}>${order.total}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (

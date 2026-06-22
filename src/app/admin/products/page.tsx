@@ -613,7 +613,20 @@ const ProductsManagement = () => {
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Precio</Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 700 }}>${product.price.toLocaleString('es-ES')}</Typography>
+                              {product.discount && product.discount > 0 ? (
+                                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>
+                                    ${(product.price * (1 - product.discount / 100)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.primary', fontSize: '0.75rem' }}>
+                                    ${product.price.toLocaleString('es-ES')}
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                  ${product.price.toLocaleString('es-ES')}
+                                </Typography>
+                              )}
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Stock</Typography>
