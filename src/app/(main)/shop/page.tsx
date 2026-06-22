@@ -85,7 +85,7 @@ const ShopContent = () => {
     try {
       let query = supabase
         .from('products')
-        .select('id, name, price, discount, stock, images, category_id, category:categories(name)', { count: 'exact' });
+        .select('id, name, price, discount, final_price, stock, images, category_id, category:categories(name)', { count: 'exact' });
 
       // Apply Filters
       if (searchQuery) {
@@ -118,8 +118,8 @@ const ShopContent = () => {
         }
       }
 
-      if (minPrice > 0) query = query.gte('price', minPrice);
-      if (maxPrice < 10000000) query = query.lte('price', maxPrice);
+      if (minPrice > 0) query = query.gte('final_price', minPrice);
+      if (maxPrice < 10000000) query = query.lte('final_price', maxPrice);
 
       if (stockFilter === 'in-stock') query = query.gt('stock', 0);
       else if (stockFilter === 'out-of-stock') query = query.eq('stock', 0);
@@ -129,8 +129,8 @@ const ShopContent = () => {
 
       // Sorting
       switch (sortBy) {
-        case 'price-low': query = query.order('price', { ascending: true }); break;
-        case 'price-high': query = query.order('price', { ascending: false }); break;
+        case 'price-low': query = query.order('final_price', { ascending: true }); break;
+        case 'price-high': query = query.order('final_price', { ascending: false }); break;
         case 'newest': query = query.order('created_at', { ascending: false }); break;
         case 'oldest': query = query.order('created_at', { ascending: true }); break;
       }
