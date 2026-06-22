@@ -52,14 +52,12 @@ const CategoryRow = ({ category, childrenCategories, onEdit, onDelete, onAddSub 
   return (
     <>
       <TableRow hover sx={{ '& > *': { borderBottom: 'unset !important' } }}>
-        <TableCell sx={{ py: 1.5 }}>
+        <TableCell sx={{ py: 1.5, pl: 2.5 }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            {hasChildren ? (
-              <IconButton size="small" onClick={() => setOpen(!open)} sx={{ p: 0.5 }}>
+            {hasChildren && (
+              <IconButton size="small" onClick={() => setOpen(!open)} sx={{ p: 0.5, ml: -0.5 }}>
                 {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
               </IconButton>
-            ) : (
-              <Box sx={{ width: 32 }} /> // Spacer for alignment
             )}
             <Folder size={18} opacity={0.8} color="#cc0000" />
             <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{category.name}</Typography>
@@ -75,7 +73,7 @@ const CategoryRow = ({ category, childrenCategories, onEdit, onDelete, onAddSub 
         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>Categoría Principal</Typography>
         </TableCell>
-        <TableCell align="right">
+        <TableCell align="right" sx={{ pr: 1.5 }}>
           <Stack direction="row" spacing={1} justifyContent="flex-end">
             <Tooltip title="Nueva Subcategoría">
               <IconButton size="small" color="primary" onClick={() => onAddSub(category)}>
@@ -345,9 +343,9 @@ const CategoriesManagement = () => {
           <Table>
             <TableHead sx={{ bgcolor: 'rgba(0,0,0,0.02)' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Categoría</TableCell>
+                <TableCell sx={{ pl: 1.5, fontWeight: 700 }}>Categoría</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Tipo</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
+                <TableCell align="right" sx={{ pr: 1.5, fontWeight: 700 }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
