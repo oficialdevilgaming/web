@@ -47,12 +47,12 @@ const MaintenancePage = () => {
   }
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh', 
-      bgcolor: '#050505', 
-      color: 'white', 
-      display: 'flex', 
-      alignItems: 'center', 
+    <Box sx={{
+      minHeight: '100vh',
+      bgcolor: '#050505',
+      color: 'white',
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
       overflow: 'hidden'
@@ -85,9 +85,9 @@ const MaintenancePage = () => {
             </motion.div>
           </Box>
 
-          <Typography variant="h1" sx={{ 
-            fontWeight: 900, 
-            fontSize: { xs: '3rem', md: '5rem' }, 
+          <Typography variant="h1" sx={{
+            fontWeight: 900,
+            fontSize: { xs: '3rem', md: '5rem' },
             lineHeight: 1,
             mb: 3,
             background: 'linear-gradient(90deg, #ffffff, #aaaaaa)',
@@ -95,17 +95,17 @@ const MaintenancePage = () => {
             WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.02em'
           }}>
-            DEVIL<span style={{ WebkitTextFillColor: '#cc0000' }}>GAMING</span>
+            <span style={{ WebkitTextFillColor: '#cc0000' }}>DEVIL </span>GAMING
           </Typography>
 
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 3 }}>
             Estamos en Mantenimiento
           </Typography>
 
-          <Typography variant="body1" sx={{ 
-            color: 'rgba(255,255,255,0.7)', 
-            fontSize: '1.2rem', 
-            maxWidth: '600px', 
+          <Typography variant="body1" sx={{
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: '1.2rem',
+            maxWidth: '600px',
             mx: 'auto',
             lineHeight: 1.6
           }}>
