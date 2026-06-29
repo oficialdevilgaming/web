@@ -93,7 +93,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
         }} />
 
         <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid container spacing={4} alignItems="center">
+          <Grid sx={{ ml: 2 }} container spacing={4} alignItems="center">
             <Grid size={{ xs: 12, md: 7 }}>
               <Typography variant="overline" color="primary.main" sx={{ fontWeight: 900, fontSize: '0.9rem', letterSpacing: 5, display: 'block', mb: 1 }}>
                 ESTÁNDAR DE ÉLITE
@@ -103,10 +103,11 @@ const Hero = ({ banners, loading }: HeroProps) => {
                 fontSize: { xs: '2.2rem', md: '3.4rem' },
                 lineHeight: 1.1,
                 fontWeight: 900,
+                textTransform: 'none',
                 textShadow: '0 10px 30px rgba(0,0,0,0.5)'
               }}>
-                DOMINA TU MUNDO <br />
-                CON{' '}
+                Potencia tu setup<br />
+                con{' '}
                 <motion.span
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -116,8 +117,8 @@ const Hero = ({ banners, loading }: HeroProps) => {
                     textShadow: '0 0 40px rgba(255,0,0,0.6)'
                   }}
                 >
-                  <span style={{ color: '#cc0000' }}>DEVIL</span>{' '}
-                  <span style={{ color: '#ffffff' }}>GAMING</span>
+                  <span style={{ color: '#cc0000' }}>Devil</span>{' '}
+                  <span style={{ color: '#ffffff' }}>Gaming</span>
                 </motion.span>
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
@@ -374,8 +375,10 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [banners, setBanners] = useState<any[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const fetchFeatured = async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -539,7 +542,7 @@ const HomePage = () => {
                   WebkitTextFillColor: 'transparent',
                   display: 'inline-block',
                   textShadow: '0 0 20px rgba(255,0,0,0.15)',
-                  fontSize: { xs: '1.5rem', sm: '2rem', md: '3rem' }
+                  fontSize: { xs: '1.125rem', sm: '1.5rem', md: '2.25rem' }
                 }}>
                   Productos Destacados
                 </Typography>
@@ -549,26 +552,26 @@ const HomePage = () => {
               </Button>
             </Box>
 
-            {loading ? (
+            {(!mounted || loading) ? (
               <Box sx={{ textAlign: 'center', py: 5 }}><CircularProgress /></Box>
             ) : (
               <Swiper
                 modules={[Navigation, Pagination, Autoplay]}
-                spaceBetween={30}
+                spaceBetween={20}
                 slidesPerView={1}
                 pagination={{ clickable: true }}
                 autoplay={{ delay: 5000 }}
                 breakpoints={{
-                  640: { slidesPerView: 2 },
-                  960: { slidesPerView: 3 },
-                  1200: { slidesPerView: 4 },
-                  1536: { slidesPerView: 5 },
+                  640: { slidesPerView: 3 },
+                  960: { slidesPerView: 4 },
+                  1200: { slidesPerView: 5 },
+                  1536: { slidesPerView: 6 },
                 }}
                 style={{ padding: '20px 5px 50px 5px' }}
               >
                 {featuredProducts.map((product) => (
                   <SwiperSlide key={product.id}>
-                    <ProductCard product={product} />
+                    <ProductCard product={product} small />
                   </SwiperSlide>
                 ))}
               </Swiper>

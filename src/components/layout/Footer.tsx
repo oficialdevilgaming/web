@@ -128,30 +128,6 @@ const Footer = () => {
                   </Box>
                 </Stack>
 
-                {/* Schedule */}
-                <Stack direction="row" spacing={2} alignItems="flex-start">
-                  <Box sx={{ color: 'primary.main', mt: 0.5 }}>
-                    <Clock size={20} />
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'rgba(255,255,255,0.4)',
-                        fontWeight: 700,
-                        letterSpacing: 1.2,
-                        display: 'block',
-                        mb: 0.5
-                      }}
-                    >
-                      DÍAS Y HORARIOS
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
-                      Martes a Sábado, 15:00 a 19:00 hrs
-                    </Typography>
-                  </Box>
-                </Stack>
-
                 {/* Email */}
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Box sx={{ color: 'primary.main' }}>

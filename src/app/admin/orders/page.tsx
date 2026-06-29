@@ -44,18 +44,21 @@ import { useAlert } from '../../../context/AlertContext';
 // Placeholder número de WhatsApp de la tienda
 const WHATSAPP_STORE_NUMBER = '5491155099149';
 
+const ORDER_STATUSES = ['Pendiente', 'Pagado', 'Enviado', 'Entregado', 'Cancelado'] as const;
+const ACTIVE_ORDER_STATUSES = ORDER_STATUSES.filter(status => status !== 'Cancelado');
+
 const statusIcons: { [key: string]: any } = {
   'Pendiente': <Clock size={16} />,
-  'Enviado': <Truck size={16} />,
   'Pagado': <DollarSign size={16} />,
+  'Enviado': <Truck size={16} />,
   'Entregado': <CheckCircle size={16} />,
   'Cancelado': <AlertCircle size={16} />,
 };
 
 const statusColors: { [key: string]: any } = {
   'Pendiente': 'warning',
-  'Enviado': 'info',
   'Pagado': 'secondary',
+  'Enviado': 'info',
   'Entregado': 'success',
   'Cancelado': 'error',
 };
@@ -1200,8 +1203,6 @@ const OrdersManagement = () => {
   // Removed client-side filteredOrders and pagedOrders memos
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    const ACTIVE_STATUSES = ['Pendiente', 'Enviado', 'Pagado', 'Entregado'];
-
     try {
       // 1. Obtener los datos actuales del pedido
       const { data: order, error: fetchErr } = await supabase
@@ -1218,7 +1219,7 @@ const OrdersManagement = () => {
       const oldStatus = order.status;
       const items = order.items || [];
 
-      const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+      const isActive = (status: string) => ACTIVE_ORDER_STATUSES.includes(status as typeof ACTIVE_ORDER_STATUSES[number]);
       const oldIsActive = isActive(oldStatus);
       const newIsActive = isActive(newStatus);
 
@@ -1309,7 +1310,7 @@ const OrdersManagement = () => {
 
     // Si el pedido que se va a eliminar estaba en estado activo (no Cancelado),
     // devolvemos el stock de sus productos antes de eliminarlo.
-    const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+    const isActive = (status: string) => ACTIVE_ORDER_STATUSES.includes(status as typeof ACTIVE_ORDER_STATUSES[number]);
     if (isActive(orderToDelete.status)) {
       const items = orderToDelete.items || [];
       for (const item of items) {
@@ -1403,11 +1404,9 @@ const OrdersManagement = () => {
                   sx={{ minWidth: 150 }}
                 >
                   <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="Pendiente">Pendiente</MenuItem>
-                  <MenuItem value="Enviado">Enviado</MenuItem>
-                  <MenuItem value="Pagado">Pagado</MenuItem>
-                  <MenuItem value="Entregado">Entregado</MenuItem>
-                  <MenuItem value="Cancelado">Cancelado</MenuItem>
+                  {ORDER_STATUSES.map(status => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
                 </Select>
 
 
@@ -1530,11 +1529,14 @@ const OrdersManagement = () => {
                           />
                         )}
                       >
-                        <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                        <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                        <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                        <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                        <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                        {ORDER_STATUSES.map(status => (
+                          <MenuItem key={status} value={status}>
+                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                              {statusIcons[status]}
+                            </Box>
+                            {status}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
@@ -1607,11 +1609,14 @@ const OrdersManagement = () => {
                                   />
                                 )}
                               >
-                                <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                                <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                                <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                                <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                                <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                                {ORDER_STATUSES.map(status => (
+                                  <MenuItem key={status} value={status}>
+                                    <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                                      {statusIcons[status]}
+                                    </Box>
+                                    {status}
+                                  </MenuItem>
+                                ))}
                               </Select>
                             </Stack>
                           </Stack>
@@ -1640,7 +1645,17 @@ const OrdersManagement = () => {
       </Paper>
 
       {/* ── Order Detail Modal ── */}
-      <Dialog open={openDetail} onClose={handleCloseDetail} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openDetail}
+        onClose={handleCloseDetail}
+        maxWidth={false}
+        sx={{
+          '& .MuiDialog-paper': {
+            width: { xs: 'calc(100% - 32px)', sm: 640 },
+            maxWidth: 'calc(100% - 32px)',
+          },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <ShoppingBag size={24} color="#cc0000" />
@@ -1704,9 +1719,19 @@ const OrdersManagement = () => {
                       <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Mail size={18} />
                       </Box>
-                      <Box sx={{ flexGrow: 1 }}>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Typography variant="caption" color="text.secondary">Email</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 700 }}>{selectedOrder.email}</Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            maxWidth: { sm: 250 },
+                            overflowWrap: 'anywhere',
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {selectedOrder.email}
+                        </Typography>
                       </Box>
                     </Stack>
                   </Grid>
@@ -1791,11 +1816,14 @@ const OrdersManagement = () => {
                               />
                             )}
                           >
-                            <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                            <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                            <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                            <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                            <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                            {ORDER_STATUSES.map(status => (
+                              <MenuItem key={status} value={status}>
+                                <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                                  {statusIcons[status]}
+                                </Box>
+                                {status}
+                              </MenuItem>
+                            ))}
                           </Select>
                         )}
                       </Box>
