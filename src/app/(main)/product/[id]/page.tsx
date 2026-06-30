@@ -596,7 +596,7 @@ export default function ProductDetailPage() {
         .eq('id', id)
         .single();
 
-      if (pData) {
+      if (pData && !pData.is_hidden) {
         setProduct(pData);
         setSelectedImage(
           pData.images?.[0] ?? pData.image ?? '/default-gaming-product.png'
@@ -607,6 +607,7 @@ export default function ProductDetailPage() {
           .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
           .eq('category_id', pData.category_id)
           .neq('id', id)
+          .eq('is_hidden', false)
           .limit(4);
 
         setRelated(rel ?? []);

@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../context/CartContext';
 import { alpha, styled } from '@mui/material/styles';
 import { supabase } from '../../lib/supabase';
+import { isAlwaysVisibleCategory } from '../../lib/categoryConstants';
 import CartDrawer from '../cart/CartDrawer';
 import { useAuth } from '../../context/AuthContext';
 import { getCDNUrl } from '../../lib/imageUtils';
@@ -147,19 +148,38 @@ const Navbar = () => {
 
     setLoadingCategories(true);
     try {
-      const { data, error } = await supabase
+      const { data: catsData, error: catsError } = await supabase
         .from('categories')
         .select('id, name, parent_id')
         .order('name');
 
-      if (error) throw error;
+      if (catsError) throw catsError;
 
-      if (data) {
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('category_id')
+        .eq('is_hidden', false);
+
+      if (productsError) throw productsError;
+
+      if (catsData) {
+        const activeSet = new Set(productsData?.map(p => p.category_id) || []);
+        
+        const isCategoryActive = (catId: string, allCats: any[]): boolean => {
+          const cat = allCats.find(c => c.id === catId);
+          if (cat && isAlwaysVisibleCategory(cat.name)) return true;
+          if (activeSet.has(catId)) return true;
+          const children = allCats.filter(c => c.parent_id === catId);
+          return children.some(child => isCategoryActive(child.id, allCats));
+        };
+
+        const activeCatsData = catsData.filter(cat => isCategoryActive(cat.id, catsData));
+
         const catMap = new Map();
         let newArmadaPath = '/shop?category=PCs%20Armadas';
         let newOutletPath = '/shop?category=Placas%20de%20Video%20Outlet';
 
-        data.forEach((c: any) => {
+        activeCatsData.forEach((c: any) => {
           const path = `/shop?category=${encodeURIComponent(c.name)}`;
           catMap.set(c.id, {
             ...c,
@@ -169,7 +189,7 @@ const Navbar = () => {
         });
 
         const parentCats: CategoryType[] = [];
-        data.forEach((c: any) => {
+        activeCatsData.forEach((c: any) => {
           const lowerName = c.name.toLowerCase();
           const isSpecial = lowerName.includes('armada') || lowerName.includes('outlet');
 
@@ -223,6 +243,7 @@ const Navbar = () => {
           .from('products')
           .select('id, name, images, price, discount')
           .ilike('name', `%${searchQuery.trim()}%`)
+          .eq('is_hidden', false)
           .limit(5);
 
         if (data && !error) {

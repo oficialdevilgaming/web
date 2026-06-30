@@ -21,7 +21,7 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material';
-import { CheckCircle2, Truck, ListChecks, ArrowLeft, MessageCircle, Send } from 'lucide-react';
+import { CheckCircle2, Truck, ListChecks, ArrowLeft, MessageCircle, Send, Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 
@@ -48,6 +48,7 @@ const CheckoutPage = () => {
     phone: '',
     email: ''
   });
+  const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -59,7 +60,7 @@ const CheckoutPage = () => {
     return acc + effectivePrice * item.quantity;
   }, 0);
   const discountTotal = originalSubtotal - subtotal;
-  const shipping = subtotal > 500 ? 0 : 15;
+  const shipping = deliveryMethod === 'store_pickup' ? 0 : (subtotal > 500 ? 0 : 15);
   const total = subtotal + shipping;
 
   const isFormValid =
@@ -67,9 +68,7 @@ const CheckoutPage = () => {
     formData.lastName &&
     formData.phone &&
     formData.email &&
-    formData.address &&
-    formData.city &&
-    formData.zipCode;
+    (deliveryMethod === 'store_pickup' || (formData.address && formData.city && formData.zipCode));
 
   const isCartValid = state.items.length > 0;
 
@@ -102,11 +101,12 @@ const CheckoutPage = () => {
         customer_name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
         phone: formData.phone || '',
         email: formData.email || '',
-        address: formData.address || '',
-        city: formData.city || '',
-        zip_code: formData.zipCode || '',
+        address: deliveryMethod === 'store_pickup' ? null : (formData.address || ''),
+        city: deliveryMethod === 'store_pickup' ? null : (formData.city || ''),
+        zip_code: deliveryMethod === 'store_pickup' ? null : (formData.zipCode || ''),
         total: Number(total) || 0,
         status: 'Pendiente',
+        delivery_method: deliveryMethod,
         items: (state.items || []).map(item => ({
           id: item.id,
           name: item.name,
@@ -171,11 +171,12 @@ const CheckoutPage = () => {
 
       // 4. Armar mensaje de WhatsApp
       const message = `*NUEVO PEDIDO: #${orderId}*\n\n` +
+        `*Tipo de envío:* ${deliveryMethod === 'store_pickup' ? 'Recoger en tienda' : 'Enviar a domicilio'}\n` +
         `*Cliente:* ${formData.firstName} ${formData.lastName}\n` +
         `*Email:* ${formData.email}\n` +
         `*Teléfono:* ${formData.phone}\n` +
-        `*Dirección:* ${formData.address}, ${formData.city}\n\n` +
-        `*Productos:*\n` +
+        (deliveryMethod === 'store_pickup' ? '' : `*Dirección:* ${formData.address}, ${formData.city}\n`) +
+        `\n*Productos:*\n` +
         state.items.map((item: any) => {
           const effPrice = item.price * (1 - (item.discount || 0) / 100);
           const priceDetail = item.discount && item.discount > 0
@@ -217,10 +218,62 @@ const CheckoutPage = () => {
         <Typography variant="body2" color="text.secondary">Ingresa tus datos para coordinar el pago y envío.</Typography>
       </Box>
 
-      <Alert icon={<MessageCircle size={20} />} severity="info" sx={{ borderRadius: 2 }}>
-        <AlertTitle sx={{ fontWeight: 700 }}>Gestión por WhatsApp</AlertTitle>
-        Al finalizar, se generará un mensaje automático para enviarnos por WhatsApp y coordinar el{' '}<Typography component="span" sx={{ fontWeight: 700 }}>pago y seguimiento</Typography>.
-      </Alert>
+      {/* Tabs Selector */}
+      <Box sx={{ display: 'flex', bgcolor: 'rgba(0,0,0,0.04)', p: 0.5, borderRadius: 3 }}>
+        <Button
+          fullWidth
+          onClick={() => setDeliveryMethod('home_delivery')}
+          startIcon={<Truck size={18} />}
+          sx={{
+            py: 1.5,
+            borderRadius: 2.5,
+            fontWeight: 700,
+            textTransform: 'none',
+            color: deliveryMethod === 'home_delivery' ? 'white' : 'text.secondary',
+            bgcolor: deliveryMethod === 'home_delivery' ? '#cc0000' : 'transparent',
+            boxShadow: deliveryMethod === 'home_delivery' ? '0 4px 12px rgba(204, 0, 0, 0.2)' : 'none',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: deliveryMethod === 'home_delivery' ? '#b30000' : 'rgba(0,0,0,0.02)'
+            }
+          }}
+        >
+          Enviar a domicilio
+        </Button>
+        <Button
+          fullWidth
+          onClick={() => setDeliveryMethod('store_pickup')}
+          startIcon={<Store size={18} />}
+          sx={{
+            py: 1.5,
+            borderRadius: 2.5,
+            fontWeight: 700,
+            textTransform: 'none',
+            color: deliveryMethod === 'store_pickup' ? 'white' : 'text.secondary',
+            bgcolor: deliveryMethod === 'store_pickup' ? '#cc0000' : 'transparent',
+            boxShadow: deliveryMethod === 'store_pickup' ? '0 4px 12px rgba(204, 0, 0, 0.2)' : 'none',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: deliveryMethod === 'store_pickup' ? '#b30000' : 'rgba(0,0,0,0.02)'
+            }
+          }}
+        >
+          Recoger en tienda
+        </Button>
+      </Box>
+
+      {/* Disclaimer */}
+      {deliveryMethod === 'home_delivery' ? (
+        <Alert icon={<MessageCircle size={20} />} severity="info" sx={{ borderRadius: 2 }}>
+          <AlertTitle sx={{ fontWeight: 700 }}>Gestión por WhatsApp</AlertTitle>
+          Al finalizar, se generará un mensaje automático para enviarnos por WhatsApp y coordinar el{' '}<Typography component="span" sx={{ fontWeight: 700 }}>pago y seguimiento</Typography>.
+        </Alert>
+      ) : (
+        <Alert icon={<Store size={20} />} severity="success" sx={{ borderRadius: 2, bgcolor: 'rgba(76, 175, 80, 0.08)', border: '1px solid rgba(76, 175, 80, 0.2)', color: '#2e7d32' }}>
+          <AlertTitle sx={{ fontWeight: 700, color: '#1b5e20' }}>Retiro en tienda</AlertTitle>
+          Te esperamos en Justo José de Urquiza 4777, Torre 1 Piso 6 Oficina 70, Caseros. <br />Al finalizar, coordinaremos los detalles por WhatsApp.
+        </Alert>
+      )}
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6 }}>
@@ -235,15 +288,20 @@ const CheckoutPage = () => {
         <Grid size={12}>
           <TextField fullWidth label="Teléfono (WhatsApp)" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="Ej: +54 9 11 ..." />
         </Grid>
-        <Grid size={12}>
-          <TextField fullWidth label="Dirección de Envío" name="address" value={formData.address} onChange={handleInputChange} required />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField fullWidth label="Ciudad" name="city" value={formData.city} onChange={handleInputChange} required />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField fullWidth label="Código Postal" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
-        </Grid>
+
+        {deliveryMethod === 'home_delivery' && (
+          <>
+            <Grid size={12}>
+              <TextField fullWidth label="Dirección de Envío" name="address" value={formData.address} onChange={handleInputChange} required />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Ciudad" name="city" value={formData.city} onChange={handleInputChange} required />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField fullWidth label="Código Postal" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
+            </Grid>
+          </>
+        )}
       </Grid>
     </Stack>
   );
@@ -279,11 +337,11 @@ const CheckoutPage = () => {
   );
 
   return (
-    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '80vh', py: { xs: 4, md: 7 } }}>
+    <Box sx={{ bgcolor: '#f4f4f4', minHeight: '80vh', py: { xs: 4, md: 5 } }}>
       <Container maxWidth="lg">
         {activeStep < 1 ? (
           <>
-            <Typography variant="h4" sx={{ mb: { xs: 3, md: 4 }, fontWeight: 850, textAlign: 'center', fontSize: { xs: '1.9rem', md: '2.4rem' } }}>Finalizar Compra</Typography>
+            <Typography variant="h4" sx={{ mb: { xs: 2, md: 2.5 }, fontWeight: 850, textAlign: 'center', fontSize: { xs: '1.7rem', md: '2.2rem' } }}>Finalizar Compra</Typography>
 
             <Stepper activeStep={activeStep} sx={{ mb: 5, display: { xs: 'none', sm: 'flex' } }}>
               {steps.map((label) => (
@@ -379,8 +437,7 @@ const CheckoutPage = () => {
                     <Button
                       variant="text"
                       color="inherit"
-                      disabled={activeStep === 0}
-                      onClick={handleBack}
+                      onClick={activeStep === 0 ? () => router.push('/cart') : handleBack}
                       startIcon={<ArrowLeft size={18} />}
                       sx={{ fontWeight: 600 }}
                     >

@@ -34,8 +34,10 @@ import {
   Avatar,
   TableSortLabel,
   Collapse,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
-import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail } from 'lucide-react';
+import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail, Store } from 'lucide-react';
 import { useState, useEffect, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
@@ -44,20 +46,40 @@ import { useAlert } from '../../../context/AlertContext';
 // Placeholder número de WhatsApp de la tienda
 const WHATSAPP_STORE_NUMBER = '5491155099149';
 
+const ORDER_STATUSES = ['Pendiente', 'Pagado', 'Enviado', 'Entregado', 'Cancelado'] as const;
+const ACTIVE_ORDER_STATUSES = ORDER_STATUSES.filter(status => status !== 'Cancelado');
+
 const statusIcons: { [key: string]: any } = {
   'Pendiente': <Clock size={16} />,
-  'Enviado': <Truck size={16} />,
   'Pagado': <DollarSign size={16} />,
+  'Enviado': <Truck size={16} />,
   'Entregado': <CheckCircle size={16} />,
   'Cancelado': <AlertCircle size={16} />,
 };
 
 const statusColors: { [key: string]: any } = {
   'Pendiente': 'warning',
-  'Enviado': 'info',
   'Pagado': 'secondary',
+  'Enviado': 'info',
   'Entregado': 'success',
   'Cancelado': 'error',
+};
+
+const DELIVERY_METHODS = ['home_delivery', 'store_pickup'] as const;
+
+const deliveryMethodLabels: { [key: string]: string } = {
+  'home_delivery': 'Domicilio',
+  'store_pickup': 'Tienda',
+};
+
+const deliveryMethodColors: { [key: string]: any } = {
+  'home_delivery': 'info',
+  'store_pickup': 'success',
+};
+
+const deliveryMethodIcons: { [key: string]: any } = {
+  'home_delivery': <Truck size={16} />,
+  'store_pickup': <Store size={16} />,
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -88,6 +110,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
   const [orderDate, setOrderDate] = useState(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -159,12 +182,13 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         customer_name: contactName.trim(),
         phone: contactPhone.trim(),
         email: contactEmail.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        zip_code: zipCode.trim(),
+        address: deliveryMethod === 'store_pickup' ? null : address.trim(),
+        city: deliveryMethod === 'store_pickup' ? null : city.trim(),
+        zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
         items: cartItems,
         total,
         status: 'Pendiente',
+        delivery_method: deliveryMethod,
         created_at: new Date(orderDate).toISOString(),
       }]).select('id').single();
 
@@ -204,6 +228,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
     setAddress('');
     setCity('');
     setZipCode('');
+    setDeliveryMethod('home_delivery');
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setOrderDate(now.toISOString().slice(0, 16));
@@ -213,7 +238,13 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
 
   const canNext = () => {
     if (activeStep === 0) return cartItems.length > 0;
-    if (activeStep === 1) return contactName.trim() !== '' && contactPhone.trim() !== '';
+    if (activeStep === 1) {
+      const basicValid = contactName.trim() !== '' && contactPhone.trim() !== '';
+      if (deliveryMethod === 'home_delivery') {
+        return basicValid && address.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
+      }
+      return basicValid;
+    }
     return true;
   };
 
@@ -372,7 +403,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                               )}
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
-                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }} disabled={item.quantity <= 1}>
                                 <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
                               </IconButton>
                               <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
@@ -407,6 +438,28 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
             <Typography variant="body2" color="text.secondary" align="center">
               Completá los datos del cliente para registrar el pedido.
             </Typography>
+            <Stack direction="row" spacing={3} justifyContent="center" sx={{ mb: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryMethod === 'home_delivery'}
+                    onChange={() => setDeliveryMethod('home_delivery')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontWeight: 600 }}>Envío a Domicilio</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryMethod === 'store_pickup'}
+                    onChange={() => setDeliveryMethod('store_pickup')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontWeight: 600 }}>Recoger en Tienda</Typography>}
+              />
+            </Stack>
             <TextField
               fullWidth
               label="Nombre completo"
@@ -435,33 +488,37 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                 startAdornment: <InputAdornment position="start"><Mail size={18} /></InputAdornment>
               }}
             />
-            <TextField
-              fullWidth
-              label="Dirección"
-              value={address}
-              onChange={e => setAddress(e.target.value)}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
-              }}
-            />
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 8 }}>
+            {deliveryMethod === 'home_delivery' && (
+              <>
                 <TextField
                   fullWidth
-                  label="Ciudad"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
+                  label="Dirección"
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
+                  }}
                 />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="C.P."
-                  value={zipCode}
-                  onChange={e => setZipCode(e.target.value)}
-                />
-              </Grid>
-            </Grid>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 8 }}>
+                    <TextField
+                      fullWidth
+                      label="Ciudad"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="C.P."
+                      value={zipCode}
+                      onChange={e => setZipCode(e.target.value)}
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            )}
             <TextField
               fullWidth
               type="datetime-local"
@@ -573,7 +630,9 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Dirección de Entrega</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
+                        {deliveryMethod === 'store_pickup' 
+                          ? '—' 
+                          : (address || '—')}{deliveryMethod !== 'store_pickup' && city ? `, ${city}` : ''}{deliveryMethod !== 'store_pickup' && zipCode ? ` (CP: ${zipCode})` : ''}
                       </Typography>
                     </Box>
                   </Stack>
@@ -654,8 +713,10 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
   const [orderDate, setOrderDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [orderStatus, setOrderStatus] = useState('');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -671,6 +732,8 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
       setAddress(order.address || '');
       setCity(order.city || '');
       setZipCode(order.zip_code || '');
+      setDeliveryMethod(order.delivery_method || 'home_delivery');
+      setOrderStatus(order.status || 'Pendiente');
 
       const fetchStocksAndSetItems = async () => {
         const items = order.items || [];
@@ -770,30 +833,80 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const handleUpdate = async () => {
     if (!order) return;
     setSaving(true);
+
+    const oldStatus = order.status;
+    const newStatus = orderStatus;
+
+    const updatePayload: any = {
+      customer_name: contactName.trim(),
+      phone: contactPhone.trim(),
+      email: contactEmail.trim(),
+      address: deliveryMethod === 'store_pickup' ? null : address.trim(),
+      city: deliveryMethod === 'store_pickup' ? null : city.trim(),
+      zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
+      delivery_method: deliveryMethod,
+      items: cartItems.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price * (1 - (i.discount || 0) / 100),
+        quantity: i.quantity,
+      })),
+      total,
+      created_at: new Date(orderDate).toISOString(),
+      status: orderStatus,
+    };
+
+    if (orderStatus === 'Entregado' && order.status !== 'Entregado') {
+      updatePayload.delivered_at = new Date().toISOString();
+    } else if (order.status === 'Entregado' && orderStatus !== 'Entregado') {
+      updatePayload.delivered_at = null;
+    }
+
     const { error } = await supabase
       .from('orders')
-      .update({
-        customer_name: contactName.trim(),
-        phone: contactPhone.trim(),
-        email: contactEmail.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        zip_code: zipCode.trim(),
-        items: cartItems.map(i => ({
-          id: i.id,
-          name: i.name,
-          price: i.price * (1 - (i.discount || 0) / 100),
-          quantity: i.quantity,
-        })),
-        total,
-        created_at: new Date(orderDate).toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', order.id);
 
     setSaving(false);
     if (!error) {
-      // Ajustar el stock de los productos comprados si el pedido no está Cancelado
-      if (order.status !== 'Cancelado') {
+      const isActive = (s: string) => ACTIVE_ORDER_STATUSES.includes(s as typeof ACTIVE_ORDER_STATUSES[number]);
+      const oldIsActive = isActive(oldStatus);
+      const newIsActive = isActive(newStatus);
+
+      // Si pasa de un estado activo a 'Cancelado'
+      if (oldIsActive && newStatus === 'Cancelado') {
+        const oldItems = order.items || [];
+        for (const item of oldItems) {
+          const { data: product } = await supabase
+            .from('products').select('stock').eq('id', item.id).single();
+          if (product) {
+            await supabase.from('products')
+              .update({ stock: (product.stock || 0) + item.quantity })
+              .eq('id', item.id);
+          }
+        }
+      }
+      // Si pasa de 'Cancelado' a un estado activo
+      else if (oldStatus === 'Cancelado' && newIsActive) {
+        for (const item of cartItems) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.id)
+            .single();
+
+          if (product) {
+            const currentStock = product.stock || 0;
+            const newStock = Math.max(0, currentStock - item.quantity);
+            await supabase
+              .from('products')
+              .update({ stock: newStock })
+              .eq('id', item.id);
+          }
+        }
+      }
+      // Si el pedido era activo y sigue siendo activo, ajustar diferencias
+      else if (oldIsActive && newIsActive) {
         const oldItemsMap = new Map<string, number>(order.items?.map((i: any) => [i.id, i.quantity]) || []);
         const newItemsMap = new Map<string, number>(cartItems.map((i: any) => [i.id, i.quantity]));
         const allItemIds = Array.from(new Set<string>([...oldItemsMap.keys(), ...newItemsMap.keys()]));
@@ -846,6 +959,31 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Datos del Cliente</Typography>
             <Grid container spacing={2}>
+              {/* Delivery choice checkboxes */}
+              <Grid size={12}>
+                <Stack direction="row" spacing={3} justifyContent="center" sx={{ mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={deliveryMethod === 'home_delivery'}
+                        onChange={() => setDeliveryMethod('home_delivery')}
+                        color="primary"
+                      />
+                    }
+                    label={<Typography sx={{ fontWeight: 600 }}>Envío a Domicilio</Typography>}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={deliveryMethod === 'store_pickup'}
+                        onChange={() => setDeliveryMethod('store_pickup')}
+                        color="primary"
+                      />
+                    }
+                    label={<Typography sx={{ fontWeight: 600 }}>Recoger en Tienda</Typography>}
+                  />
+                </Stack>
+              </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
@@ -892,34 +1030,79 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                   inputProps={{ lang: 'es-ES' }}
                 />
               </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Dirección"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
-                  }}
-                />
-              </Grid>
-              <Grid size={{ xs: 8 }}>
-                <TextField
-                  fullWidth
-                  label="Ciudad"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="C.P."
-                  value={zipCode}
-                  onChange={e => setZipCode(e.target.value)}
-                />
-              </Grid>
+              {deliveryMethod === 'home_delivery' && (
+                <>
+                  <Grid size={{ xs: 12 }}>
+                    <TextField
+                      fullWidth
+                      label="Dirección"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
+                      }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 8 }}>
+                    <TextField
+                      fullWidth
+                      label="Ciudad"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="C.P."
+                      value={zipCode}
+                      onChange={e => setZipCode(e.target.value)}
+                    />
+                  </Grid>
+                </>
+              )}
             </Grid>
+          </Box>
+
+          <Divider />
+
+          {/* Estado del Pedido */}
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Estado del Pedido</Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={orderStatus}
+                label="Estado"
+                onChange={(e) => setOrderStatus(e.target.value)}
+                sx={{
+                  fontWeight: 600,
+                  '& .MuiSelect-select': {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }
+                }}
+                renderValue={(value) => (
+                  <Chip
+                    icon={statusIcons[value]}
+                    label={value}
+                    size="small"
+                    color={statusColors[value]}
+                    sx={{ fontWeight: 700, border: 'none' }}
+                  />
+                )}
+              >
+                {ORDER_STATUSES.map(status => (
+                  <MenuItem key={status} value={status}>
+                    <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                      {statusIcons[status]}
+                    </Box>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
 
           <Divider />
@@ -1037,7 +1220,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                               <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
-                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }} disabled={item.quantity <= 1}>
                                 <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
                               </IconButton>
                               <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
@@ -1071,7 +1254,13 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         <Button
           variant="contained"
           onClick={handleUpdate}
-          disabled={saving || !contactName.trim() || !contactPhone.trim() || cartItems.length === 0}
+          disabled={
+            saving ||
+            !contactName.trim() ||
+            !contactPhone.trim() ||
+            cartItems.length === 0 ||
+            (deliveryMethod === 'home_delivery' && (!address.trim() || !city.trim() || !zipCode.trim()))
+          }
           sx={{ fontWeight: 700, px: 4 }}
         >
           {saving ? 'Guardando...' : 'Guardar'}
@@ -1200,8 +1389,6 @@ const OrdersManagement = () => {
   // Removed client-side filteredOrders and pagedOrders memos
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    const ACTIVE_STATUSES = ['Pendiente', 'Enviado', 'Pagado', 'Entregado'];
-
     try {
       // 1. Obtener los datos actuales del pedido
       const { data: order, error: fetchErr } = await supabase
@@ -1218,7 +1405,7 @@ const OrdersManagement = () => {
       const oldStatus = order.status;
       const items = order.items || [];
 
-      const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+      const isActive = (status: string) => ACTIVE_ORDER_STATUSES.includes(status as typeof ACTIVE_ORDER_STATUSES[number]);
       const oldIsActive = isActive(oldStatus);
       const newIsActive = isActive(newStatus);
 
@@ -1309,7 +1496,7 @@ const OrdersManagement = () => {
 
     // Si el pedido que se va a eliminar estaba en estado activo (no Cancelado),
     // devolvemos el stock de sus productos antes de eliminarlo.
-    const isActive = (status: string) => ['Pendiente', 'Enviado', 'Pagado', 'Entregado'].includes(status);
+    const isActive = (status: string) => ACTIVE_ORDER_STATUSES.includes(status as typeof ACTIVE_ORDER_STATUSES[number]);
     if (isActive(orderToDelete.status)) {
       const items = orderToDelete.items || [];
       for (const item of items) {
@@ -1340,6 +1527,7 @@ const OrdersManagement = () => {
     const cleaned = phone.replace(/\D/g, '');
     window.open(`https://wa.me/${cleaned || WHATSAPP_STORE_NUMBER}`, '_blank');
   };
+
 
   return (
     <Box>
@@ -1403,11 +1591,9 @@ const OrdersManagement = () => {
                   sx={{ minWidth: 150 }}
                 >
                   <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="Pendiente">Pendiente</MenuItem>
-                  <MenuItem value="Enviado">Enviado</MenuItem>
-                  <MenuItem value="Pagado">Pagado</MenuItem>
-                  <MenuItem value="Entregado">Entregado</MenuItem>
-                  <MenuItem value="Cancelado">Cancelado</MenuItem>
+                  {ORDER_STATUSES.map(status => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
                 </Select>
 
 
@@ -1442,6 +1628,7 @@ const OrdersManagement = () => {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Entregado</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Envío</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Estado</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
               </TableRow>
@@ -1495,7 +1682,7 @@ const OrdersManagement = () => {
                           </Box>
                         </Tooltip>
                       ) : (
-                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                        <Typography variant="body2" color="text.disabled">−</Typography>
                       )}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>
@@ -1505,6 +1692,16 @@ const OrdersManagement = () => {
                       {order.delivered_at ? new Date(order.delivered_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '−'}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
+                    {/* Envío column */}
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                      <Chip
+                        icon={deliveryMethodIcons[order.delivery_method || 'home_delivery']}
+                        label={deliveryMethodLabels[order.delivery_method || 'home_delivery'] || order.delivery_method}
+                        size="small"
+                        color={deliveryMethodColors[order.delivery_method || 'home_delivery']}
+                        sx={{ fontWeight: 700, border: 'none' }}
+                      />
+                    </TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
                       <Select
                         size="small"
@@ -1530,18 +1727,19 @@ const OrdersManagement = () => {
                           />
                         )}
                       >
-                        <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                        <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                        <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                        <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                        <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                        {ORDER_STATUSES.map(status => (
+                          <MenuItem key={status} value={status}>
+                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                              {statusIcons[status]}
+                            </Box>
+                            {status}
+                          </MenuItem>
+                        ))}
                       </Select>
                     </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <IconButton size="small" onClick={() => handleViewDetail(order)} aria-label="Ver detalles">
-                          <Eye size={18} />
-                        </IconButton>
+
                         <IconButton size="small" onClick={() => handleEditClick(order)} color="primary" aria-label="Editar">
                           <Edit2 size={18} />
                         </IconButton>
@@ -1560,7 +1758,7 @@ const OrdersManagement = () => {
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', mt: 0.5 }}>Dirección</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right', maxWidth: '70%' }}>
-                                {order.address ? `${order.address}, ${order.city || ''} ${order.zip_code ? `(CP: ${order.zip_code})` : ''}` : 'N/A'}
+                                {order.address ? `${order.address}, ${order.city || ''} ${order.zip_code ? `(CP: ${order.zip_code})` : ''}` : '−'}
                               </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1580,6 +1778,16 @@ const OrdersManagement = () => {
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                 ${Number(order.total).toLocaleString('es-ES')}
                               </Typography>
+                            </Stack>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Envío</Typography>
+                              <Chip
+                                icon={deliveryMethodIcons[order.delivery_method || 'home_delivery']}
+                                label={deliveryMethodLabels[order.delivery_method || 'home_delivery'] || order.delivery_method}
+                                size="small"
+                                color={deliveryMethodColors[order.delivery_method || 'home_delivery']}
+                                sx={{ fontWeight: 700, border: 'none' }}
+                              />
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Estado</Typography>
@@ -1607,11 +1815,14 @@ const OrdersManagement = () => {
                                   />
                                 )}
                               >
-                                <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                                <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                                <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                                <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                                <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                                {ORDER_STATUSES.map(status => (
+                                  <MenuItem key={status} value={status}>
+                                    <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                                      {statusIcons[status]}
+                                    </Box>
+                                    {status}
+                                  </MenuItem>
+                                ))}
                               </Select>
                             </Stack>
                           </Stack>
@@ -1640,7 +1851,17 @@ const OrdersManagement = () => {
       </Paper>
 
       {/* ── Order Detail Modal ── */}
-      <Dialog open={openDetail} onClose={handleCloseDetail} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openDetail}
+        onClose={handleCloseDetail}
+        maxWidth={false}
+        sx={{
+          '& .MuiDialog-paper': {
+            width: { xs: 'calc(100% - 32px)', sm: 640 },
+            maxWidth: 'calc(100% - 32px)',
+          },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <ShoppingBag size={24} color="#cc0000" />
@@ -1704,9 +1925,19 @@ const OrdersManagement = () => {
                       <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#3f51b5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Mail size={18} />
                       </Box>
-                      <Box sx={{ flexGrow: 1 }}>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Typography variant="caption" color="text.secondary">Email</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 700 }}>{selectedOrder.email}</Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            maxWidth: { sm: 250 },
+                            overflowWrap: 'anywhere',
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {selectedOrder.email}
+                        </Typography>
                       </Box>
                     </Stack>
                   </Grid>
@@ -1791,11 +2022,14 @@ const OrdersManagement = () => {
                               />
                             )}
                           >
-                            <MenuItem value="Pendiente"><Clock size={16} style={{ marginRight: 8 }} /> Pendiente</MenuItem>
-                            <MenuItem value="Enviado"><Truck size={16} style={{ marginRight: 8 }} /> Enviado</MenuItem>
-                            <MenuItem value="Pagado"><DollarSign size={16} style={{ marginRight: 8 }} /> Pagado</MenuItem>
-                            <MenuItem value="Entregado"><CheckCircle size={16} style={{ marginRight: 8 }} /> Entregado</MenuItem>
-                            <MenuItem value="Cancelado"><AlertCircle size={16} style={{ marginRight: 8 }} /> Cancelado</MenuItem>
+                            {ORDER_STATUSES.map(status => (
+                              <MenuItem key={status} value={status}>
+                                <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                                  {statusIcons[status]}
+                                </Box>
+                                {status}
+                              </MenuItem>
+                            ))}
                           </Select>
                         )}
                       </Box>
@@ -1803,25 +2037,48 @@ const OrdersManagement = () => {
                   </Stack>
                 </Grid>
 
+                {/* Tipo de Envío */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: selectedOrder?.delivery_method === 'store_pickup' ? 'rgba(76,175,80,0.15)' : 'rgba(33,150,243,0.15)', color: selectedOrder?.delivery_method === 'store_pickup' ? '#2e7d32' : '#1565c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {selectedOrder?.delivery_method === 'store_pickup' ? <Store size={18} /> : <Truck size={18} />}
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Tipo de Envío</Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Chip
+                          icon={selectedOrder?.delivery_method === 'store_pickup' ? <Store size={14} /> : <Truck size={14} />}
+                          label={selectedOrder?.delivery_method === 'store_pickup' ? 'Recoger en tienda' : 'Enviar a domicilio'}
+                          size="small"
+                          color={selectedOrder?.delivery_method === 'store_pickup' ? 'success' : 'info'}
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Grid>
+
                 {/* Dirección */}
-                {(selectedOrder?.address || selectedOrder?.city) && (
-                  <Grid size={{ xs: 12 }}>
-                    <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <MapPin size={18} />
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {selectedOrder.address}
-                          {selectedOrder.city ? `, ${selectedOrder.city}` : ''}
-                          {selectedOrder.zip_code ? ` (CP: ${selectedOrder.zip_code})` : ''}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Grid>
-                )}
+                <Grid size={{ xs: 12 }}>
+                  <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <MapPin size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: !selectedOrder?.address ? 'text.disabled' : 'inherit' }}>
+                        {selectedOrder?.address
+                          ? <>
+                              {selectedOrder.address}
+                              {selectedOrder.city ? `, ${selectedOrder.city}` : ''}
+                              {selectedOrder.zip_code ? ` (CP: ${selectedOrder.zip_code})` : ''}
+                            </>
+                          : '—'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
               </Grid>
             </Box>
 

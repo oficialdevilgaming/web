@@ -10,7 +10,7 @@ export interface Product {
   name: string;
   brand: string;
   category_id: string; // UUID from Supabase
-  category?: { 
+  category?: {
     name: string;
     parent_id?: string | null;
     parent?: { name: string };
@@ -42,9 +42,9 @@ export interface Order {
   userId?: string;
   customer_name: string;
   email?: string;
-  phone: string; // Mandatory now
+  phone: string;
   date?: string;
   items: CartItem[];
   total: number;
-  status: 'Pendiente' | 'Enviado' | 'Pagado' | 'Entregado' | 'Cancelado';
+  status: 'Pendiente' | 'Pagado' | 'Enviado' | 'Entregado' | 'Cancelado';
 }

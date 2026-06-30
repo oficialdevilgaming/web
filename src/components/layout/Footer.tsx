@@ -123,15 +123,15 @@ const Footer = () => {
                         }
                       }}
                     >
-                      Justo José de Urquiza 4777, Caseros, Buenos Aires
+                      Justo José de Urquiza 4777, Torre 1 Piso 6 Oficina 70, Caseros, Buenos Aires
                     </Link>
                   </Box>
                 </Stack>
 
-                {/* Schedule */}
-                <Stack direction="row" spacing={2} alignItems="flex-start">
-                  <Box sx={{ color: 'primary.main', mt: 0.5 }}>
-                    <Clock size={20} />
+                {/* Email */}
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box sx={{ color: 'primary.main' }}>
+                    <Mail size={20} />
                   </Box>
                   <Box>
                     <Typography
@@ -144,36 +144,26 @@ const Footer = () => {
                         mb: 0.5
                       }}
                     >
-                      DÍAS Y HORARIOS
+                      MAIL
                     </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
-                      Martes a Sábado, 15:00 a 19:00 hrs
-                    </Typography>
+                    <Link
+                      href="mailto:oficial.devilgaming@gmail.com"
+                      color="inherit"
+                      variant="body2"
+                      sx={{
+                        textDecoration: 'none',
+                        fontWeight: 500,
+                        opacity: 0.8,
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                          opacity: 1,
+                          color: 'primary.main'
+                        }
+                      }}
+                    >
+                      oficial.devilgaming@gmail.com
+                    </Link>
                   </Box>
-                </Stack>
-
-                {/* Email */}
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ color: 'primary.main' }}>
-                    <Mail size={20} />
-                  </Box>
-                  <Link
-                    href="mailto:oficial.devilgaming@gmail.com"
-                    color="inherit"
-                    variant="body2"
-                    sx={{
-                      textDecoration: 'none',
-                      fontWeight: 500,
-                      opacity: 0.8,
-                      transition: 'opacity 0.2s',
-                      '&:hover': {
-                        opacity: 1,
-                        color: 'primary.main'
-                      }
-                    }}
-                  >
-                    oficial.devilgaming@gmail.com
-                  </Link>
                 </Stack>
               </Stack>
             </Stack>
