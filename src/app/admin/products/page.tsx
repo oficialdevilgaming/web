@@ -31,7 +31,7 @@ import {
   Tooltip,
   MenuItem
 } from '@mui/material';
-import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
 import { useAlert } from '../../../context/AlertContext';
@@ -51,6 +51,7 @@ type Product = {
   stock: number;
   featured?: boolean;
   discount?: number;
+  is_hidden?: boolean;
 };
 
 type Category = {
@@ -99,7 +100,8 @@ const ProductsManagement = () => {
     stock: '' as number | string,
     featured: false,
     images: [] as string[],
-    discount: '' as number | string
+    discount: '' as number | string,
+    is_hidden: false
   });
 
   // Filtros y Paginación
@@ -204,7 +206,8 @@ const ProductsManagement = () => {
       stock: product ? product.stock : '',
       featured: product?.featured || false,
       images: product?.images || [],
-      discount: product?.discount != null ? product.discount : ''
+      discount: product?.discount != null ? product.discount : '',
+      is_hidden: product?.is_hidden || false
     });
     setSelectedParentId(product?.category?.parent_id || '');
     setSelectedFiles([]);
@@ -330,7 +333,8 @@ const ProductsManagement = () => {
       stock: Number(formValues.stock) || 0,
       featured: formValues.featured,
       images: finalImages,
-      discount: formValues.discount !== '' ? Number(formValues.discount) : null
+      discount: formValues.discount !== '' ? Number(formValues.discount) : null,
+      is_hidden: formValues.is_hidden
     };
 
     try {
@@ -589,8 +593,29 @@ const ProductsManagement = () => {
                     </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <IconButton size="small" color="primary" onClick={() => handleOpenDetail(product)} title="Ver Detalle">
-                          <Eye size={18} />
+                        <IconButton
+                          size="small"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const newHidden = !product.is_hidden;
+                            try {
+                              const { error } = await supabase
+                                .from('products')
+                                .update({ is_hidden: newHidden })
+                                .eq('id', product.id);
+                              if (error) throw error;
+                              setAllProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_hidden: newHidden } : p));
+                            } catch (err) {
+                              console.error('Error al actualizar el estado del producto:', err);
+                            }
+                          }}
+                          title={product.is_hidden ? 'Mostrar en tienda (Shadow: Activo)' : 'Ocultar en tienda (Shadow: Inactivo)'}
+                        >
+                          {product.is_hidden ? (
+                            <EyeOff size={20} color="#cc0000" />
+                          ) : (
+                            <Eye size={20} color="#2e7d32" />
+                          )}
                         </IconButton>
                         <IconButton size="small" onClick={() => handleOpen(product)} title="Editar">
                           <Edit2 size={18} />
@@ -795,6 +820,11 @@ const ProductsManagement = () => {
               <Stack spacing={3}>
                 <Box sx={{ p: 2, bgcolor: 'rgba(255,215,0,0.05)', borderRadius: 3, border: '1px solid rgba(255,215,0,0.2)' }}>
                   <FormControlLabel
+                    sx={{
+                      width: '100%',
+                      m: 0,
+                      '& .MuiFormControlLabel-label': { flex: 1 }
+                    }}
                     control={
                       <Switch
                         checked={formValues.featured}
@@ -803,15 +833,39 @@ const ProductsManagement = () => {
                       />
                     }
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography sx={{ fontWeight: 700 }}>Producto Destacado</Typography>
-                        <Star size={16} fill={formValues.featured ? "#FFD700" : "none"} color="#FFD700" />
+                        <Star size={20} fill={formValues.featured ? "#FFD700" : "none"} color="#FFD700" />
                       </Box>
                     }
                   />
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                    Aparecerá en la sección Productos Destacados de la tienda.
-                  </Typography>
+                </Box>
+
+                <Box sx={{ p: 2, bgcolor: 'rgba(244,244,245,0.8)', borderRadius: 3, border: '1px solid rgba(161,161,170,0.4)' }}>
+                  <FormControlLabel
+                    sx={{
+                      width: '100%',
+                      m: 0,
+                      '& .MuiFormControlLabel-label': { flex: 1 }
+                    }}
+                    control={
+                      <Switch
+                        checked={formValues.is_hidden}
+                        onChange={(e) => setFormValues({ ...formValues, is_hidden: e.target.checked })}
+                        color="error"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontWeight: 700 }}>Shadow</Typography>
+                        {formValues.is_hidden ? (
+                          <EyeOff size={20} color="#cc0000" />
+                        ) : (
+                          <Eye size={20} color="#2e7d32" />
+                        )}
+                      </Box>
+                    }
+                  />
                 </Box>
 
                 <Box>

@@ -385,6 +385,7 @@ const HomePage = () => {
         .from('products')
         .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
         .eq('featured', true)
+        .eq('is_hidden', false)
         .limit(8);
 
       if (!error) {

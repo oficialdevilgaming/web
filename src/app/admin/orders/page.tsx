@@ -34,8 +34,10 @@ import {
   Avatar,
   TableSortLabel,
   Collapse,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
-import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail } from 'lucide-react';
+import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail, Store } from 'lucide-react';
 import { useState, useEffect, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
@@ -61,6 +63,23 @@ const statusColors: { [key: string]: any } = {
   'Enviado': 'info',
   'Entregado': 'success',
   'Cancelado': 'error',
+};
+
+const DELIVERY_METHODS = ['home_delivery', 'store_pickup'] as const;
+
+const deliveryMethodLabels: { [key: string]: string } = {
+  'home_delivery': 'Domicilio',
+  'store_pickup': 'Tienda',
+};
+
+const deliveryMethodColors: { [key: string]: any } = {
+  'home_delivery': 'info',
+  'store_pickup': 'success',
+};
+
+const deliveryMethodIcons: { [key: string]: any } = {
+  'home_delivery': <Truck size={16} />,
+  'store_pickup': <Store size={16} />,
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -91,6 +110,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
   const [orderDate, setOrderDate] = useState(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -162,12 +182,13 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
         customer_name: contactName.trim(),
         phone: contactPhone.trim(),
         email: contactEmail.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        zip_code: zipCode.trim(),
+        address: deliveryMethod === 'store_pickup' ? null : address.trim(),
+        city: deliveryMethod === 'store_pickup' ? null : city.trim(),
+        zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
         items: cartItems,
         total,
         status: 'Pendiente',
+        delivery_method: deliveryMethod,
         created_at: new Date(orderDate).toISOString(),
       }]).select('id').single();
 
@@ -207,6 +228,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
     setAddress('');
     setCity('');
     setZipCode('');
+    setDeliveryMethod('home_delivery');
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setOrderDate(now.toISOString().slice(0, 16));
@@ -216,7 +238,13 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
 
   const canNext = () => {
     if (activeStep === 0) return cartItems.length > 0;
-    if (activeStep === 1) return contactName.trim() !== '' && contactPhone.trim() !== '';
+    if (activeStep === 1) {
+      const basicValid = contactName.trim() !== '' && contactPhone.trim() !== '';
+      if (deliveryMethod === 'home_delivery') {
+        return basicValid && address.trim() !== '' && city.trim() !== '' && zipCode.trim() !== '';
+      }
+      return basicValid;
+    }
     return true;
   };
 
@@ -410,6 +438,28 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
             <Typography variant="body2" color="text.secondary" align="center">
               Completá los datos del cliente para registrar el pedido.
             </Typography>
+            <Stack direction="row" spacing={3} justifyContent="center" sx={{ mb: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryMethod === 'home_delivery'}
+                    onChange={() => setDeliveryMethod('home_delivery')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontWeight: 600 }}>Envío a Domicilio</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryMethod === 'store_pickup'}
+                    onChange={() => setDeliveryMethod('store_pickup')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontWeight: 600 }}>Recoger en Tienda</Typography>}
+              />
+            </Stack>
             <TextField
               fullWidth
               label="Nombre completo"
@@ -438,33 +488,37 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                 startAdornment: <InputAdornment position="start"><Mail size={18} /></InputAdornment>
               }}
             />
-            <TextField
-              fullWidth
-              label="Dirección"
-              value={address}
-              onChange={e => setAddress(e.target.value)}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
-              }}
-            />
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 8 }}>
+            {deliveryMethod === 'home_delivery' && (
+              <>
                 <TextField
                   fullWidth
-                  label="Ciudad"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
+                  label="Dirección"
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
+                  }}
                 />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="C.P."
-                  value={zipCode}
-                  onChange={e => setZipCode(e.target.value)}
-                />
-              </Grid>
-            </Grid>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 8 }}>
+                    <TextField
+                      fullWidth
+                      label="Ciudad"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="C.P."
+                      value={zipCode}
+                      onChange={e => setZipCode(e.target.value)}
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            )}
             <TextField
               fullWidth
               type="datetime-local"
@@ -576,7 +630,9 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Dirección de Entrega</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {address || 'No especificada'}{city ? `, ${city}` : ''}{zipCode ? ` (CP: ${zipCode})` : ''}
+                        {deliveryMethod === 'store_pickup' 
+                          ? '—' 
+                          : (address || '—')}{deliveryMethod !== 'store_pickup' && city ? `, ${city}` : ''}{deliveryMethod !== 'store_pickup' && zipCode ? ` (CP: ${zipCode})` : ''}
                       </Typography>
                     </Box>
                   </Stack>
@@ -657,6 +713,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
   const [orderDate, setOrderDate] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -674,6 +731,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
       setAddress(order.address || '');
       setCity(order.city || '');
       setZipCode(order.zip_code || '');
+      setDeliveryMethod(order.delivery_method || 'home_delivery');
 
       const fetchStocksAndSetItems = async () => {
         const items = order.items || [];
@@ -779,9 +837,10 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         customer_name: contactName.trim(),
         phone: contactPhone.trim(),
         email: contactEmail.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        zip_code: zipCode.trim(),
+        address: deliveryMethod === 'store_pickup' ? null : address.trim(),
+        city: deliveryMethod === 'store_pickup' ? null : city.trim(),
+        zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
+        delivery_method: deliveryMethod,
         items: cartItems.map(i => ({
           id: i.id,
           name: i.name,
@@ -849,6 +908,31 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Datos del Cliente</Typography>
             <Grid container spacing={2}>
+              {/* Delivery choice checkboxes */}
+              <Grid size={12}>
+                <Stack direction="row" spacing={3} justifyContent="center" sx={{ mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={deliveryMethod === 'home_delivery'}
+                        onChange={() => setDeliveryMethod('home_delivery')}
+                        color="primary"
+                      />
+                    }
+                    label={<Typography sx={{ fontWeight: 600 }}>Envío a Domicilio</Typography>}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={deliveryMethod === 'store_pickup'}
+                        onChange={() => setDeliveryMethod('store_pickup')}
+                        color="primary"
+                      />
+                    }
+                    label={<Typography sx={{ fontWeight: 600 }}>Recoger en Tienda</Typography>}
+                  />
+                </Stack>
+              </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
@@ -895,33 +979,37 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                   inputProps={{ lang: 'es-ES' }}
                 />
               </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Dirección"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
-                  }}
-                />
-              </Grid>
-              <Grid size={{ xs: 8 }}>
-                <TextField
-                  fullWidth
-                  label="Ciudad"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="C.P."
-                  value={zipCode}
-                  onChange={e => setZipCode(e.target.value)}
-                />
-              </Grid>
+              {deliveryMethod === 'home_delivery' && (
+                <>
+                  <Grid size={{ xs: 12 }}>
+                    <TextField
+                      fullWidth
+                      label="Dirección"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start"><MapPin size={18} /></InputAdornment>
+                      }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 8 }}>
+                    <TextField
+                      fullWidth
+                      label="Ciudad"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="C.P."
+                      value={zipCode}
+                      onChange={e => setZipCode(e.target.value)}
+                    />
+                  </Grid>
+                </>
+              )}
             </Grid>
           </Box>
 
@@ -1074,7 +1162,13 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         <Button
           variant="contained"
           onClick={handleUpdate}
-          disabled={saving || !contactName.trim() || !contactPhone.trim() || cartItems.length === 0}
+          disabled={
+            saving ||
+            !contactName.trim() ||
+            !contactPhone.trim() ||
+            cartItems.length === 0 ||
+            (deliveryMethod === 'home_delivery' && (!address.trim() || !city.trim() || !zipCode.trim()))
+          }
           sx={{ fontWeight: 700, px: 4 }}
         >
           {saving ? 'Guardando...' : 'Guardar'}
@@ -1342,6 +1436,19 @@ const OrdersManagement = () => {
     window.open(`https://wa.me/${cleaned || WHATSAPP_STORE_NUMBER}`, '_blank');
   };
 
+  const handleDeliveryMethodChange = async (id: string, newMethod: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ delivery_method: newMethod })
+        .eq('id', id);
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, delivery_method: newMethod } : o));
+    } catch (err) {
+      console.error('Error al actualizar el método de envío:', err);
+    }
+  };
+
   return (
     <Box>
       <Stack
@@ -1442,6 +1549,7 @@ const OrdersManagement = () => {
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Entregado</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Total</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Estado</TableCell>
+                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Envío</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -1494,7 +1602,7 @@ const OrdersManagement = () => {
                           </Box>
                         </Tooltip>
                       ) : (
-                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                        <Typography variant="body2" color="text.disabled">−</Typography>
                       )}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>
@@ -1539,11 +1647,45 @@ const OrdersManagement = () => {
                         ))}
                       </Select>
                     </TableCell>
+                    {/* Envío column */}
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        size="small"
+                        value={order.delivery_method || 'home_delivery'}
+                        onChange={(e) => handleDeliveryMethodChange(order.id, e.target.value)}
+                        sx={{
+                          minWidth: 120,
+                          fontWeight: 600,
+                          '& .MuiSelect-select': {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            py: 0.5
+                          }
+                        }}
+                        renderValue={(value) => (
+                          <Chip
+                            icon={deliveryMethodIcons[value]}
+                            label={deliveryMethodLabels[value] || value}
+                            size="small"
+                            color={deliveryMethodColors[value]}
+                            sx={{ fontWeight: 700, border: 'none' }}
+                          />
+                        )}
+                      >
+                        {DELIVERY_METHODS.map(dm => (
+                          <MenuItem key={dm} value={dm}>
+                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                              {deliveryMethodIcons[dm]}
+                            </Box>
+                            {deliveryMethodLabels[dm]}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <IconButton size="small" onClick={() => handleViewDetail(order)} aria-label="Ver detalles">
-                          <Eye size={18} />
-                        </IconButton>
+
                         <IconButton size="small" onClick={() => handleEditClick(order)} color="primary" aria-label="Editar">
                           <Edit2 size={18} />
                         </IconButton>
@@ -1562,7 +1704,7 @@ const OrdersManagement = () => {
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', mt: 0.5 }}>Dirección</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right', maxWidth: '70%' }}>
-                                {order.address ? `${order.address}, ${order.city || ''} ${order.zip_code ? `(CP: ${order.zip_code})` : ''}` : 'N/A'}
+                                {order.address ? `${order.address}, ${order.city || ''} ${order.zip_code ? `(CP: ${order.zip_code})` : ''}` : '−'}
                               </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1831,25 +1973,48 @@ const OrdersManagement = () => {
                   </Stack>
                 </Grid>
 
+                {/* Tipo de Envío */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: selectedOrder?.delivery_method === 'store_pickup' ? 'rgba(76,175,80,0.15)' : 'rgba(33,150,243,0.15)', color: selectedOrder?.delivery_method === 'store_pickup' ? '#2e7d32' : '#1565c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {selectedOrder?.delivery_method === 'store_pickup' ? <Store size={18} /> : <Truck size={18} />}
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Tipo de Envío</Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Chip
+                          icon={selectedOrder?.delivery_method === 'store_pickup' ? <Store size={14} /> : <Truck size={14} />}
+                          label={selectedOrder?.delivery_method === 'store_pickup' ? 'Recoger en tienda' : 'Enviar a domicilio'}
+                          size="small"
+                          color={selectedOrder?.delivery_method === 'store_pickup' ? 'success' : 'info'}
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Grid>
+
                 {/* Dirección */}
-                {(selectedOrder?.address || selectedOrder?.city) && (
-                  <Grid size={{ xs: 12 }}>
-                    <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <MapPin size={18} />
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {selectedOrder.address}
-                          {selectedOrder.city ? `, ${selectedOrder.city}` : ''}
-                          {selectedOrder.zip_code ? ` (CP: ${selectedOrder.zip_code})` : ''}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Grid>
-                )}
+                <Grid size={{ xs: 12 }}>
+                  <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <MapPin size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Dirección de Entrega</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: !selectedOrder?.address ? 'text.disabled' : 'inherit' }}>
+                        {selectedOrder?.address
+                          ? <>
+                              {selectedOrder.address}
+                              {selectedOrder.city ? `, ${selectedOrder.city}` : ''}
+                              {selectedOrder.zip_code ? ` (CP: ${selectedOrder.zip_code})` : ''}
+                            </>
+                          : '—'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
               </Grid>
             </Box>
 

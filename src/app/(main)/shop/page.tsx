@@ -27,6 +27,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 
 import { supabase } from '../../../lib/supabase';
+import { isAlwaysVisibleCategory } from '../../../lib/categoryConstants';
 import CategorySidebar from '../../../components/layout/CategorySidebar';
 import ProductCard from '../../../components/product/ProductCard';
 
@@ -85,7 +86,8 @@ const ShopContent = () => {
     try {
       let query = supabase
         .from('products')
-        .select('id, name, price, discount, final_price, stock, images, category_id, category:categories(name)', { count: 'exact' });
+        .select('id, name, price, discount, final_price, stock, images, category_id, category:categories(name)', { count: 'exact' })
+        .eq('is_hidden', false);
 
       // Apply Filters
       if (searchQuery) {
@@ -164,8 +166,30 @@ const ShopContent = () => {
   useEffect(() => {
     const fetchCats = async () => {
       try {
-        const { data } = await supabase.from('categories').select('id, name, parent_id');
-        if (data) setCategories(data);
+        const { data: catsData, error: catsError } = await supabase.from('categories').select('id, name, parent_id');
+        if (catsError) throw catsError;
+
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('category_id')
+          .eq('is_hidden', false);
+
+        if (productsError) throw productsError;
+
+        if (catsData) {
+          const activeSet = new Set(productsData?.map(p => p.category_id) || []);
+          
+          const isCategoryActive = (catId: string, allCats: any[]): boolean => {
+            const cat = allCats.find(c => c.id === catId);
+            if (cat && isAlwaysVisibleCategory(cat.name)) return true;
+            if (activeSet.has(catId)) return true;
+            const children = allCats.filter(c => c.parent_id === catId);
+            return children.some(child => isCategoryActive(child.id, allCats));
+          };
+
+          const activeCatsData = catsData.filter(cat => isCategoryActive(cat.id, catsData));
+          setCategories(activeCatsData);
+        }
       } catch (error) {
         console.error("Error fetching categories:", error);
       } finally {
