@@ -133,23 +133,37 @@ const Footer = () => {
                   <Box sx={{ color: 'primary.main' }}>
                     <Mail size={20} />
                   </Box>
-                  <Link
-                    href="mailto:oficial.devilgaming@gmail.com"
-                    color="inherit"
-                    variant="body2"
-                    sx={{
-                      textDecoration: 'none',
-                      fontWeight: 500,
-                      opacity: 0.8,
-                      transition: 'opacity 0.2s',
-                      '&:hover': {
-                        opacity: 1,
-                        color: 'primary.main'
-                      }
-                    }}
-                  >
-                    oficial.devilgaming@gmail.com
-                  </Link>
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'rgba(255,255,255,0.4)',
+                        fontWeight: 700,
+                        letterSpacing: 1.2,
+                        display: 'block',
+                        mb: 0.5
+                      }}
+                    >
+                      MAIL
+                    </Typography>
+                    <Link
+                      href="mailto:oficial.devilgaming@gmail.com"
+                      color="inherit"
+                      variant="body2"
+                      sx={{
+                        textDecoration: 'none',
+                        fontWeight: 500,
+                        opacity: 0.8,
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                          opacity: 1,
+                          color: 'primary.main'
+                        }
+                      }}
+                    >
+                      oficial.devilgaming@gmail.com
+                    </Link>
+                  </Box>
                 </Stack>
               </Stack>
             </Stack>
