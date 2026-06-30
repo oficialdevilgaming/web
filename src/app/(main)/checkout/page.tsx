@@ -439,8 +439,7 @@ const CheckoutPage = () => {
                     <Button
                       variant="text"
                       color="inherit"
-                      disabled={activeStep === 0}
-                      onClick={handleBack}
+                      onClick={activeStep === 0 ? () => router.push('/cart') : handleBack}
                       startIcon={<ArrowLeft size={18} />}
                       sx={{ fontWeight: 600 }}
                     >

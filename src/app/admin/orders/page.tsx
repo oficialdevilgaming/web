@@ -1548,8 +1548,8 @@ const OrdersManagement = () => {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Entregado</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Total</TableCell>
-                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Estado</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Envío</TableCell>
+                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Estado</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
@@ -1612,41 +1612,6 @@ const OrdersManagement = () => {
                       {order.delivered_at ? new Date(order.delivered_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '−'}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        size="small"
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        sx={{
-                          minWidth: 140,
-                          fontWeight: 600,
-                          '& .MuiSelect-select': {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            py: 0.5
-                          }
-                        }}
-                        renderValue={(value) => (
-                          <Chip
-                            icon={statusIcons[value]}
-                            label={value}
-                            size="small"
-                            color={statusColors[value]}
-                            sx={{ fontWeight: 700, border: 'none' }}
-                          />
-                        )}
-                      >
-                        {ORDER_STATUSES.map(status => (
-                          <MenuItem key={status} value={status}>
-                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
-                              {statusIcons[status]}
-                            </Box>
-                            {status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </TableCell>
                     {/* Envío column */}
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
                       <Select
@@ -1679,6 +1644,41 @@ const OrdersManagement = () => {
                               {deliveryMethodIcons[dm]}
                             </Box>
                             {deliveryMethodLabels[dm]}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        size="small"
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        sx={{
+                          minWidth: 140,
+                          fontWeight: 600,
+                          '& .MuiSelect-select': {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            py: 0.5
+                          }
+                        }}
+                        renderValue={(value) => (
+                          <Chip
+                            icon={statusIcons[value]}
+                            label={value}
+                            size="small"
+                            color={statusColors[value]}
+                            sx={{ fontWeight: 700, border: 'none' }}
+                          />
+                        )}
+                      >
+                        {ORDER_STATUSES.map(status => (
+                          <MenuItem key={status} value={status}>
+                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                              {statusIcons[status]}
+                            </Box>
+                            {status}
                           </MenuItem>
                         ))}
                       </Select>
