@@ -269,11 +269,9 @@ const CheckoutPage = () => {
           Al finalizar, se generará un mensaje automático para enviarnos por WhatsApp y coordinar el{' '}<Typography component="span" sx={{ fontWeight: 700 }}>pago y seguimiento</Typography>.
         </Alert>
       ) : (
-        <Alert icon={<MessageCircle size={20} />} severity="success" sx={{ borderRadius: 2, bgcolor: 'rgba(76, 175, 80, 0.08)', border: '1px solid rgba(76, 175, 80, 0.2)', color: '#2e7d32' }}>
+        <Alert icon={<Store size={20} />} severity="success" sx={{ borderRadius: 2, bgcolor: 'rgba(76, 175, 80, 0.08)', border: '1px solid rgba(76, 175, 80, 0.2)', color: '#2e7d32' }}>
           <AlertTitle sx={{ fontWeight: 700, color: '#1b5e20' }}>Retiro en tienda</AlertTitle>
-          Te esperamos en nuestro local para retirar tu compra. Al finalizar, coordinaremos los detalles por WhatsApp.
-          {/* Dirección física del local (Completar aquí más adelante si se requiere):
-              Av. Siempreviva 742, CABA */}
+          Te esperamos en Justo José de Urquiza 4777, Torre 1 Piso 6 Oficina 70, Caseros. <br />Al finalizar, coordinaremos los detalles por WhatsApp.
         </Alert>
       )}
 

@@ -123,7 +123,7 @@ const Footer = () => {
                         }
                       }}
                     >
-                      Justo José de Urquiza 4777, Caseros, Buenos Aires
+                      Justo José de Urquiza 4777, Torre 1 Piso 6 Oficina 70, Caseros, Buenos Aires
                     </Link>
                   </Box>
                 </Stack>

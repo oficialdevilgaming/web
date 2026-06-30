@@ -403,7 +403,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                               )}
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
-                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }} disabled={item.quantity <= 1}>
                                 <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
                               </IconButton>
                               <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
@@ -716,6 +716,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
   const [orderDate, setOrderDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [orderStatus, setOrderStatus] = useState('');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -732,6 +733,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
       setCity(order.city || '');
       setZipCode(order.zip_code || '');
       setDeliveryMethod(order.delivery_method || 'home_delivery');
+      setOrderStatus(order.status || 'Pendiente');
 
       const fetchStocksAndSetItems = async () => {
         const items = order.items || [];
@@ -831,31 +833,80 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
   const handleUpdate = async () => {
     if (!order) return;
     setSaving(true);
+
+    const oldStatus = order.status;
+    const newStatus = orderStatus;
+
+    const updatePayload: any = {
+      customer_name: contactName.trim(),
+      phone: contactPhone.trim(),
+      email: contactEmail.trim(),
+      address: deliveryMethod === 'store_pickup' ? null : address.trim(),
+      city: deliveryMethod === 'store_pickup' ? null : city.trim(),
+      zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
+      delivery_method: deliveryMethod,
+      items: cartItems.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price * (1 - (i.discount || 0) / 100),
+        quantity: i.quantity,
+      })),
+      total,
+      created_at: new Date(orderDate).toISOString(),
+      status: orderStatus,
+    };
+
+    if (orderStatus === 'Entregado' && order.status !== 'Entregado') {
+      updatePayload.delivered_at = new Date().toISOString();
+    } else if (order.status === 'Entregado' && orderStatus !== 'Entregado') {
+      updatePayload.delivered_at = null;
+    }
+
     const { error } = await supabase
       .from('orders')
-      .update({
-        customer_name: contactName.trim(),
-        phone: contactPhone.trim(),
-        email: contactEmail.trim(),
-        address: deliveryMethod === 'store_pickup' ? null : address.trim(),
-        city: deliveryMethod === 'store_pickup' ? null : city.trim(),
-        zip_code: deliveryMethod === 'store_pickup' ? null : zipCode.trim(),
-        delivery_method: deliveryMethod,
-        items: cartItems.map(i => ({
-          id: i.id,
-          name: i.name,
-          price: i.price * (1 - (i.discount || 0) / 100),
-          quantity: i.quantity,
-        })),
-        total,
-        created_at: new Date(orderDate).toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', order.id);
 
     setSaving(false);
     if (!error) {
-      // Ajustar el stock de los productos comprados si el pedido no está Cancelado
-      if (order.status !== 'Cancelado') {
+      const isActive = (s: string) => ACTIVE_ORDER_STATUSES.includes(s as typeof ACTIVE_ORDER_STATUSES[number]);
+      const oldIsActive = isActive(oldStatus);
+      const newIsActive = isActive(newStatus);
+
+      // Si pasa de un estado activo a 'Cancelado'
+      if (oldIsActive && newStatus === 'Cancelado') {
+        const oldItems = order.items || [];
+        for (const item of oldItems) {
+          const { data: product } = await supabase
+            .from('products').select('stock').eq('id', item.id).single();
+          if (product) {
+            await supabase.from('products')
+              .update({ stock: (product.stock || 0) + item.quantity })
+              .eq('id', item.id);
+          }
+        }
+      }
+      // Si pasa de 'Cancelado' a un estado activo
+      else if (oldStatus === 'Cancelado' && newIsActive) {
+        for (const item of cartItems) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.id)
+            .single();
+
+          if (product) {
+            const currentStock = product.stock || 0;
+            const newStock = Math.max(0, currentStock - item.quantity);
+            await supabase
+              .from('products')
+              .update({ stock: newStock })
+              .eq('id', item.id);
+          }
+        }
+      }
+      // Si el pedido era activo y sigue siendo activo, ajustar diferencias
+      else if (oldIsActive && newIsActive) {
         const oldItemsMap = new Map<string, number>(order.items?.map((i: any) => [i.id, i.quantity]) || []);
         const newItemsMap = new Map<string, number>(cartItems.map((i: any) => [i.id, i.quantity]));
         const allItemIds = Array.from(new Set<string>([...oldItemsMap.keys(), ...newItemsMap.keys()]));
@@ -1015,6 +1066,47 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
 
           <Divider />
 
+          {/* Estado del Pedido */}
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Estado del Pedido</Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={orderStatus}
+                label="Estado"
+                onChange={(e) => setOrderStatus(e.target.value)}
+                sx={{
+                  fontWeight: 600,
+                  '& .MuiSelect-select': {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }
+                }}
+                renderValue={(value) => (
+                  <Chip
+                    icon={statusIcons[value]}
+                    label={value}
+                    size="small"
+                    color={statusColors[value]}
+                    sx={{ fontWeight: 700, border: 'none' }}
+                  />
+                )}
+              >
+                {ORDER_STATUSES.map(status => (
+                  <MenuItem key={status} value={status}>
+                    <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
+                      {statusIcons[status]}
+                    </Box>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Divider />
+
           {/* Gestión de Productos */}
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Productos del Pedido</Typography>
@@ -1128,7 +1220,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                               <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
-                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }} disabled={item.quantity <= 1}>
                                 <Typography variant="caption" sx={{ fontWeight: 800, lineHeight: 1 }}>−</Typography>
                               </IconButton>
                               <Typography variant="body2" sx={{ fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
@@ -1436,18 +1528,6 @@ const OrdersManagement = () => {
     window.open(`https://wa.me/${cleaned || WHATSAPP_STORE_NUMBER}`, '_blank');
   };
 
-  const handleDeliveryMethodChange = async (id: string, newMethod: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ delivery_method: newMethod })
-        .eq('id', id);
-      if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, delivery_method: newMethod } : o));
-    } catch (err) {
-      console.error('Error al actualizar el método de envío:', err);
-    }
-  };
 
   return (
     <Box>
@@ -1613,40 +1693,14 @@ const OrdersManagement = () => {
                     </TableCell>
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
                     {/* Envío column */}
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
-                      <Select
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                      <Chip
+                        icon={deliveryMethodIcons[order.delivery_method || 'home_delivery']}
+                        label={deliveryMethodLabels[order.delivery_method || 'home_delivery'] || order.delivery_method}
                         size="small"
-                        value={order.delivery_method || 'home_delivery'}
-                        onChange={(e) => handleDeliveryMethodChange(order.id, e.target.value)}
-                        sx={{
-                          minWidth: 120,
-                          fontWeight: 600,
-                          '& .MuiSelect-select': {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            py: 0.5
-                          }
-                        }}
-                        renderValue={(value) => (
-                          <Chip
-                            icon={deliveryMethodIcons[value]}
-                            label={deliveryMethodLabels[value] || value}
-                            size="small"
-                            color={deliveryMethodColors[value]}
-                            sx={{ fontWeight: 700, border: 'none' }}
-                          />
-                        )}
-                      >
-                        {DELIVERY_METHODS.map(dm => (
-                          <MenuItem key={dm} value={dm}>
-                            <Box component="span" sx={{ mr: 1, display: 'inline-flex', alignItems: 'center' }}>
-                              {deliveryMethodIcons[dm]}
-                            </Box>
-                            {deliveryMethodLabels[dm]}
-                          </MenuItem>
-                        ))}
-                      </Select>
+                        color={deliveryMethodColors[order.delivery_method || 'home_delivery']}
+                        sx={{ fontWeight: 700, border: 'none' }}
+                      />
                     </TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} onClick={(e) => e.stopPropagation()}>
                       <Select
@@ -1724,6 +1778,16 @@ const OrdersManagement = () => {
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                 ${Number(order.total).toLocaleString('es-ES')}
                               </Typography>
+                            </Stack>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Envío</Typography>
+                              <Chip
+                                icon={deliveryMethodIcons[order.delivery_method || 'home_delivery']}
+                                label={deliveryMethodLabels[order.delivery_method || 'home_delivery'] || order.delivery_method}
+                                size="small"
+                                color={deliveryMethodColors[order.delivery_method || 'home_delivery']}
+                                sx={{ fontWeight: 700, border: 'none' }}
+                              />
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Estado</Typography>
