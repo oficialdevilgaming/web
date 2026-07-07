@@ -156,7 +156,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
     <Box sx={{
       width: '100%',
       height: { xs: 'auto', md: '70vh' },
-      minHeight: { xs: '500px', md: '550px' },
+      minHeight: { xs: '340px', sm: '440px', md: '550px' },
       position: 'relative',
       overflow: 'hidden',
       bgcolor: 'black',
@@ -195,7 +195,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
           <Box sx={{
             width: '100%',
             height: '100%',
-            minHeight: { xs: '500px', md: '550px' },
+            minHeight: { xs: '340px', sm: '440px', md: '550px' },
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -248,18 +248,18 @@ const Hero = ({ banners, loading }: HeroProps) => {
               sx={{
                 position: 'relative',
                 zIndex: 2,
-                py: { xs: 6, md: 0 },
-                px: { xs: '60px', md: '90px' },
+                py: { xs: 4, sm: 6, md: 0 },
+                px: { xs: '50px', sm: '60px', md: '90px' },
               }}
             >
               <Grid container spacing={4} alignItems="center">
                 <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 900, fontSize: '0.9rem', letterSpacing: 5, display: 'block', mb: 1 }}>
+                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 900, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' }, letterSpacing: { xs: 3, md: 5 }, display: 'block', mb: 1 }}>
                     ESTÁNDAR DE ÉLITE
                   </Typography>
                   <Typography variant="h1" color="white" sx={{
                     mb: 1.5,
-                    fontSize: { xs: '2.2rem', md: '3.4rem' },
+                    fontSize: { xs: '1.5rem', sm: '2.4rem', md: '3.4rem' },
                     lineHeight: 1.1,
                     fontWeight: 900,
                     textTransform: 'none',
@@ -280,7 +280,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
                       <span style={{ color: '#ffffff' }}>Gaming</span>
                     </motion.span>
                   </Typography>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 2.5 }} sx={{ mt: { xs: 2.5, sm: 0 } }}>
                     <Button
                       component={Link}
                       href="/shop"
@@ -288,9 +288,9 @@ const Hero = ({ banners, loading }: HeroProps) => {
                       size="large"
                       endIcon={<ArrowRight />}
                       sx={{
-                        py: 1.5,
-                        px: 4,
-                        fontSize: '0.95rem',
+                        py: { xs: 0.8, sm: 1.5 },
+                        px: { xs: 3, sm: 4 },
+                        fontSize: { xs: '0.82rem', sm: '0.95rem' },
                         fontWeight: 700,
                         borderRadius: 3,
                         boxShadow: '0 10px 20px rgba(204, 0, 0, 0.3)',
@@ -315,11 +315,12 @@ const Hero = ({ banners, loading }: HeroProps) => {
             <Box sx={{
               width: '100%',
               height: '100%',
-              minHeight: { xs: '500px', md: '550px' },
+              minHeight: { xs: '340px', sm: '440px', md: '550px' },
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
               overflow: 'hidden',
+              bgcolor: 'black',
             }}>
               {/* Background image using img tag for reliability */}
               <Box
@@ -332,7 +333,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  objectFit: { xs: 'contain', md: 'cover' },
                   objectPosition: 'center',
                   zIndex: 0,
                 }}
@@ -360,9 +361,8 @@ const Hero = ({ banners, loading }: HeroProps) => {
                   sx={{
                     position: 'relative',
                     zIndex: 2,
-                    py: { xs: 6, md: 0 },
-                    // Padding horizontal para que el texto no quede debajo de las flechas
-                    px: { xs: '60px', md: '90px' },
+                    py: { xs: 4, sm: 6, md: 0 },
+                    px: { xs: '50px', sm: '60px', md: '90px' },
                   }}
                 >
                   <Grid container spacing={4} alignItems="center">
@@ -373,8 +373,8 @@ const Hero = ({ banners, loading }: HeroProps) => {
                           color="primary.main"
                           sx={{
                             fontWeight: 900,
-                            fontSize: '0.9rem',
-                            letterSpacing: 5,
+                            fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' },
+                            letterSpacing: { xs: 3, md: 5 },
                             display: 'block',
                             mb: 1,
                             textTransform: 'uppercase',
@@ -390,8 +390,8 @@ const Hero = ({ banners, loading }: HeroProps) => {
                           variant="h1"
                           color="white"
                           sx={{
-                            mb: 3,
-                            fontSize: { xs: '2.2rem', md: '3.4rem' },
+                            mb: { xs: 2, md: 3 },
+                            fontSize: { xs: '1.5rem', sm: '2.4rem', md: '3.4rem' },
                             lineHeight: 1.1,
                             fontWeight: 900,
                             textShadow: '0 4px 10px rgba(0,0,0,0.8)'
@@ -402,7 +402,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
                       )}
 
                       {banner.button_text && (
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 2.5 }} sx={{ mt: { xs: 2.5, sm: 0 } }}>
                           <Button
                             component={Link}
                             href={banner.button_link || '/shop'}
@@ -410,9 +410,9 @@ const Hero = ({ banners, loading }: HeroProps) => {
                             size="large"
                             endIcon={<ArrowRight />}
                             sx={{
-                              py: 1.5,
-                              px: 4,
-                              fontSize: '0.95rem',
+                              py: { xs: 0.8, sm: 1.5 },
+                              px: { xs: 3, sm: 4 },
+                              fontSize: { xs: '0.82rem', sm: '0.95rem' },
                               fontWeight: 700,
                               borderRadius: 3,
                               boxShadow: '0 10px 20px rgba(204, 0, 0, 0.3)',

@@ -208,11 +208,13 @@ const ShopContent = () => {
   }, [searchQuery, category, minPrice, maxPrice, sortBy, stockFilter, featuredFilter, discountFilter, categoriesLoaded]);
 
   // Función para obtener IDs de categorías de forma recursiva (hijos, nietos, etc)
-  const getRecursiveIds = (parentId: string, allCats: any[]): string[] => {
+  const getRecursiveIds = (parentId: string, allCats: any[], visited = new Set<string>()): string[] => {
+    if (visited.has(parentId)) return [];
+    visited.add(parentId);
     let ids = [parentId];
     const children = allCats.filter(c => c.parent_id === parentId);
     children.forEach(child => {
-      ids = [...ids, ...getRecursiveIds(child.id, allCats)];
+      ids = [...ids, ...getRecursiveIds(child.id, allCats, visited)];
     });
     return ids;
   };
