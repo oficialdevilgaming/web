@@ -285,7 +285,7 @@ const ProductsManagement = () => {
         .from('products')
         .upload(filePath, optimizedFile, {
           contentType: 'image/webp',
-          cacheControl: '3600',
+          cacheControl: '31536000', // Cache-Control: max-age=31536000 (1 year)
           upsert: false
         });
 

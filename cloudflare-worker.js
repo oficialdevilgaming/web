@@ -13,8 +13,22 @@ export default {
     }
 
     const cache = caches.default;
-    // Check if the request is already cached by Cloudflare
-    let response = await cache.match(request);
+    
+    // Normalize URL to generate a clean cache key
+    const cacheUrl = new URL(request.url);
+    
+    // Strip common marketing and tracking query parameters that fragment the cache
+    const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "fbclid", "gclid", "msclkid", "sc_cid"];
+    trackingParams.forEach(param => cacheUrl.searchParams.delete(param));
+    
+    // Create a clean request key using only the GET method and normalized URL.
+    // This strips Cookies, Authorization, User-Agent, and other headers that prevent caching.
+    const cacheKey = new Request(cacheUrl.toString(), {
+      method: "GET"
+    });
+
+    // Check if the request is already cached by Cloudflare using the clean key
+    let response = await cache.match(cacheKey);
 
     if (!response) {
       // Configuration variables (can be set in Cloudflare dashboard env vars)
@@ -33,6 +47,10 @@ export default {
         const res = await fetch(targetUrl, {
           headers: {
             "User-Agent": "Cloudflare-Worker-CDN",
+          },
+          cf: {
+            cacheTtl: 31536000, // Caches sub-request at the edge for 1 year, overriding Supabase 3600s headers
+            cacheEverything: true
           }
         });
 
@@ -63,7 +81,7 @@ export default {
         });
 
         // Store response in cache asynchronously
-        ctx.waitUntil(cache.put(request, response.clone()));
+        ctx.waitUntil(cache.put(cacheKey, response.clone()));
 
       } catch (err) {
         return new Response(`Error fetching image: ${err.message}`, { status: 500 });
