@@ -95,10 +95,12 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({ onFilterChange, categ
       const current = categories.find(c => c.name.toLowerCase() === currentCategory.toLowerCase());
       if (current) {
         let rootOfCurrent = current;
-        while (rootOfCurrent.parent_id) {
+        let depth = 0;
+        while (rootOfCurrent.parent_id && depth < 10) {
           const parent = categories.find(c => c.id === rootOfCurrent.parent_id);
           if (parent) rootOfCurrent = parent;
           else break;
+          depth++;
         }
 
         const lowerName = rootOfCurrent.name.toLowerCase();
