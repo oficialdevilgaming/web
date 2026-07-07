@@ -247,23 +247,53 @@ const ProductsManagement = () => {
   };
 
   const removeExistingImage = async (index: number) => {
-    const imgUrl = formValues.images[index];
-    // Borrar del bucket de Supabase si la imagen es del bucket 'products'
-    if (imgUrl && imgUrl.includes('/products/')) {
-      const marker = '/storage/v1/object/public/products/';
-      const markerIdx = imgUrl.indexOf(marker);
-      if (markerIdx !== -1) {
-        const filePath = imgUrl.substring(markerIdx + marker.length);
-        supabase.storage.from('products').remove([filePath])
-          .then(({ error }) => {
-            if (error) console.error('Error al borrar imagen del storage:', error);
-          });
-      }
-    }
+    const originalImages = [...formValues.images]; // snapshot ANTES de cualquier setState
+    const imgUrl = originalImages[index];
+    const updatedImages = originalImages.filter((_, i) => i !== index);
+
+    // Actualizar el estado local inmediatamente para UX
     setFormValues(prev => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: updatedImages
     }));
+
+    try {
+      // 1. Persistir en la DB PRIMERO — si falla, revertir UI sin tocar Storage
+      if (selectedProduct) {
+        const { error: dbError } = await supabase
+          .from('products')
+          .update({ images: updatedImages })
+          .eq('id', selectedProduct.id);
+
+        if (dbError) {
+          console.error('Error al actualizar imágenes en la DB:', dbError);
+          showAlert('Error al eliminar la imagen. Intentá de nuevo.');
+          // Rollback con snapshot original (no con prev del closure que ya cambió)
+          setFormValues(prev => ({ ...prev, images: originalImages }));
+          return;
+        }
+      }
+
+      // 2. Borrar del Storage solo si la DB fue actualizada correctamente
+      if (imgUrl && imgUrl.includes('/products/')) {
+        const marker = '/products/';
+        const markerIdx = imgUrl.indexOf(marker);
+        if (markerIdx !== -1) {
+          const filePath = imgUrl.substring(markerIdx + marker.length);
+          const { error } = await supabase.storage.from('products').remove([filePath]);
+          if (error) {
+            console.error('Error al borrar imagen del storage:', error);
+            showAlert('No se pudo borrar la imagen del storage. Revisá los permisos del bucket.');
+          }
+        }
+      }
+    } catch (err) {
+      // Captura errores de red nativos (timeout, CORS, sin conexión)
+      // que los if(error) de Supabase no detectan
+      console.error('[removeExistingImage] Error de red:', err);
+      showAlert('Error de red al eliminar la imagen. Revisá tu conexión.');
+      setFormValues(prev => ({ ...prev, images: originalImages }));
+    }
   };
 
   const uploadImagesToSupabase = async (files: File[]) => {
@@ -363,21 +393,29 @@ const ProductsManagement = () => {
   const handleDeleteConfirm = async () => {
     if (!productToDelete) return;
 
-    // 1. Borrar imágenes del bucket de Supabase Storage
+    // 1. Borrar el producto de la base de datos PRIMERO
+    // Si esto falla, el Storage queda intacto y no hay URLs rotas en producción
+    const { error: dbError } = await supabase.from('products').delete().eq('id', productToDelete.id);
+    if (dbError) {
+      console.error('Error al borrar producto de la DB:', dbError);
+      showAlert('Error al eliminar el producto. Intentá de nuevo.');
+      return; // Abortar sin tocar el Storage
+    }
+
+    // 2. Recién ahora borrar imágenes del Storage
+    // Si esto falla, quedan archivos huérfanos (recuperables), pero el producto ya no existe en DB
     if (productToDelete.images && productToDelete.images.length > 0) {
-      const marker = '/storage/v1/object/public/products/';
+      const marker = '/products/';
       const filePaths = productToDelete.images
         .filter(url => url && url.includes(marker))
         .map(url => url.substring(url.indexOf(marker) + marker.length));
 
       if (filePaths.length > 0) {
         const { error } = await supabase.storage.from('products').remove(filePaths);
-        if (error) console.error('Error al borrar imágenes del storage:', error);
+        if (error) console.error('Error al borrar imágenes del storage (archivos huérfanos):', error);
       }
     }
 
-    // 2. Borrar el producto de la base de datos
-    await supabase.from('products').delete().eq('id', productToDelete.id);
     setDeleteDialogOpen(false);
     setProductToDelete(null);
     fetchData();

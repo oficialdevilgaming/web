@@ -209,10 +209,10 @@ const BannersManagement = () => {
             const pathParts = oldUrl.split('/hero-banners/');
             if (pathParts.length > 1) {
               const oldPath = pathParts[1];
-              supabase.storage.from('hero-banners').remove([oldPath])
-                .then(({ error }) => {
-                  if (error) console.error('Error cleaning old banner image:', error);
-                });
+              const { error } = await supabase.storage.from('hero-banners').remove([oldPath]);
+              if (error) {
+                console.error('Error cleaning old banner image:', error);
+              }
             }
           }
         }
