@@ -104,7 +104,11 @@ const ShopContent = () => {
           // forzamos a que no traiga productos en vez de mostrar todo (por ej. consolas).
           query = query.eq('category_id', '00000000-0000-0000-0000-000000000000');
         }
-      } else if (!category && categories.length > 0) {
+      } else if (!category && categories.length > 0 && !featuredFilter && !discountFilter) {
+        // Cuando no hay categoría seleccionada y NO se filtró por destacados,
+        // excluir las categorías especiales (PC Armadas, Outlet) del listado general.
+        // Si featuredFilter está activo, mostramos TODOS los productos marcados como
+        // destacados sin importar su categoría.
         const specialCats = categories.filter(c => {
           const lower = c.name.toLowerCase();
           return lower.includes('armada') || lower.includes('outlet');
