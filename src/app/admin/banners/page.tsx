@@ -28,7 +28,7 @@ import {
   CircularProgress,
   Chip
 } from '@mui/material';
-import { Plus, Edit2, Trash2, Search, X, CheckCircle, ExternalLink, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, CheckCircle, ExternalLink, Image as ImageIcon, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { compressAndConvertToWebP } from '../../../lib/imageUtils';
 import { useAlert } from '../../../context/AlertContext';
@@ -73,6 +73,48 @@ const BannersManagement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bannerToDelete, setBannerToDelete] = useState<HeroBanner | null>(null);
 
+  const [videoBannerEnabled, setVideoBannerEnabled] = useState(true);
+  const [updatingVideoBanner, setUpdatingVideoBanner] = useState(false);
+
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('show_video_banner')
+        .eq('id', 1)
+        .single();
+      if (!error && data && data.show_video_banner !== undefined) {
+        setVideoBannerEnabled(data.show_video_banner !== false);
+      }
+    } catch (error) {
+      console.error('Error fetching video banner setting:', error);
+    }
+  };
+
+  const handleToggleVideoBanner = async () => {
+    setUpdatingVideoBanner(true);
+    try {
+      const newValue = !videoBannerEnabled;
+      const { error } = await supabase
+        .from('settings')
+        .update({ show_video_banner: newValue })
+        .eq('id', 1);
+
+      if (error) {
+        showAlert(
+          'Error al guardar el ajuste.'
+        );
+      } else {
+        setVideoBannerEnabled(newValue);
+      }
+    } catch (err: any) {
+      console.error('Error in handleToggleVideoBanner:', err);
+      showAlert('Error al actualizar el estado del video banner.');
+    } finally {
+      setUpdatingVideoBanner(false);
+    }
+  };
+
   const fetchBanners = async () => {
     setLoading(true);
     try {
@@ -93,6 +135,7 @@ const BannersManagement = () => {
 
   useEffect(() => {
     fetchBanners();
+    fetchSettings();
   }, []);
 
   const filteredBanners = useMemo(() => {
@@ -323,6 +366,70 @@ const BannersManagement = () => {
           Nuevo Banner
         </Button>
       </Stack>
+
+      {/* Default Video Banner Status Card */}
+      <Paper 
+        elevation={0} 
+        sx={{ 
+          p: 3, 
+          mb: 4, 
+          borderRadius: 4, 
+          border: '1px solid rgba(0,0,0,0.05)',
+          bgcolor: 'rgba(0,0,0,0.01)',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: 2
+        }}
+      >
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box 
+            sx={{ 
+              p: 1.5, 
+              bgcolor: videoBannerEnabled ? 'rgba(46, 125, 50, 0.1)' : 'rgba(204, 0, 0, 0.1)', 
+              borderRadius: 3,
+              color: videoBannerEnabled ? '#2e7d32' : '#cc0000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {videoBannerEnabled ? <Eye size={24} /> : <EyeOff size={24} />}
+          </Box>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              Video Banner por Defecto
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Button
+          variant="outlined"
+          color={videoBannerEnabled ? "error" : "success"}
+          startIcon={videoBannerEnabled ? <EyeOff size={18} /> : <Eye size={18} />}
+          onClick={handleToggleVideoBanner}
+          disabled={updatingVideoBanner}
+          sx={{ 
+            fontWeight: 700, 
+            borderRadius: 2.5,
+            px: 3,
+            py: 1,
+            alignSelf: { xs: 'stretch', sm: 'center' },
+            borderColor: videoBannerEnabled ? 'rgba(204, 0, 0, 0.2)' : 'rgba(46, 125, 50, 0.2)',
+            '&:hover': {
+              borderColor: videoBannerEnabled ? '#cc0000' : '#2e7d32',
+              bgcolor: videoBannerEnabled ? 'rgba(204, 0, 0, 0.04)' : 'rgba(46, 125, 50, 0.04)'
+            }
+          }}
+        >
+          {updatingVideoBanner ? (
+            <CircularProgress size={20} color="inherit" />
+          ) : (
+            videoBannerEnabled ? 'Ocultar Video Banner' : 'Mostrar Video Banner'
+          )}
+        </Button>
+      </Paper>
 
       <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         <Box sx={{ p: 3, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>

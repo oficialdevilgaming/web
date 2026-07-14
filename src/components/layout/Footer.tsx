@@ -16,7 +16,7 @@ const Footer = () => {
           <Grid size={{ xs: 12, md: 4 }}>
             <Stack spacing={2}>
               <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main', letterSpacing: 1 }}>
-                DEVIL<span style={{ color: 'white' }}>GAMING</span>
+                DEVIL{" "}<span style={{ color: 'white' }}>GAMING</span>
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.5, maxWidth: 300, lineHeight: 1.6 }}>
                 Dominá tu mundo con el estándar de élite en hardware y periféricos premium.
@@ -28,7 +28,7 @@ const Footer = () => {
           </Grid>
 
           {/* Quick Links Column */}
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 4, md: 2 }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"
@@ -39,7 +39,7 @@ const Footer = () => {
                   letterSpacing: '0.02em'
                 }}
               >
-                Dudas?
+                Preguntas?
               </Typography>
               <Stack spacing={1.5}>
                 {[
@@ -72,8 +72,38 @@ const Footer = () => {
             </Stack>
           </Grid>
 
+          {/* Mini Mapa Column */}
+          <Grid size={{ xs: 12, sm: 4, md: 2.5 }} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+            <Box 
+              sx={{ 
+                width: '100%', 
+                maxWidth: { xs: '100%', sm: 250, md: 240 },
+                height: 170, 
+                borderRadius: 4, 
+                overflow: 'hidden', 
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                transition: 'border-color 0.3s ease',
+                '&:hover': {
+                  borderColor: 'primary.main'
+                }
+              }}
+            >
+              <iframe
+                title="Ubicación Devil Gaming"
+                src="https://maps.google.com/maps?q=Justo%20Jos%C3%A9%20de%20Urquiza%204777,%20Caseros,%20Buenos%20Aires&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </Box>
+          </Grid>
+
           {/* Contact Column */}
-          <Grid size={{ xs: 12, sm: 6, md: 5 }}>
+          <Grid size={{ xs: 12, sm: 4, md: 3.5 }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"

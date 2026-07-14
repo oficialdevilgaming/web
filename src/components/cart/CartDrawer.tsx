@@ -189,7 +189,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, onClose }) => {
                 endIcon={<ArrowRight size={20} />}
                 sx={{ py: 2, fontWeight: 800, fontSize: '1rem' }}
               >
-                Tramitar Pedido
+                Realizar Pedido
               </Button>
             </Stack>
           </Box>

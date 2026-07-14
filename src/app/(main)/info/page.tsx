@@ -23,7 +23,7 @@ const infoData = {
     title: 'Garantía Devil',
     intro: 'Todos nuestros productos cuentan con la exclusiva Garantía Devil, diseñada para brindarte la máxima tranquilidad en cada compra. Sabemos lo importante que es tu setup, por eso nos comprometemos a ofrecerte el mejor respaldo post-venta del mercado.',
     items: [
-      { id: 'g1', title: 'Plazos de Cobertura', content: 'Por defecto, todos los componentes principales (placas de video, procesadores, motherboards) cuentan con 12 meses de garantía directa. Los periféricos y accesorios varían entre 3 y 6 meses dependiendo del fabricante.' },
+      { id: 'g1', title: 'Plazos de Cobertura', content: 'Por defecto, todos los componentes principales (Placas de video, procesadores, motherboards) cuentan con 3 meses de garantía directa. Los periféricos y accesorios varían entre 3 y 6 meses dependiendo del fabricante. Los componentes Outlet tienen 30 días de garantía.' },
       { id: 'g2', title: '¿Qué cubre la garantía?', content: 'La garantía cubre exclusivamente defectos de fabricación y fallas internas del hardware que impidan el correcto funcionamiento del dispositivo bajo un uso normal.' },
       { id: 'g3', title: 'Exclusiones', content: 'No están cubiertos daños físicos (golpes, caídas, pines doblados), daños por humedad o líquidos, alteraciones de software no autorizadas (overclocking extremo), ni daños causados por variaciones de tensión eléctrica en el domicilio.' },
       { id: 'g4', title: '¿Cómo solicitar la garantía?', content: 'Comunicate inmediatamente con nosotros a través de nuestro número oficial de WhatsApp con tu número de pedido a mano. Evaluaremos el caso y te brindaremos los pasos a seguir para el recambio o reparación del artículo.' },
@@ -34,7 +34,7 @@ const infoData = {
     intro: 'Hacemos envíos rápidos y seguros a todo el país para que no tengas que esperar de más para empezar a jugar. Todos nuestros paquetes se embalan con extrema precaución utilizando materiales anti-estáticos y anti-golpes.',
     items: [
       { id: 'e1', title: 'Envíos Express (CABA y GBA)', content: 'Si realizás la compra y el pago antes de las 13:00hs, tu pedido se despacha y es entregado en el mismo día mediante nuestra flota de mensajería privada. Para pedidos luego de ese horario, la entrega se efectúa al siguiente día hábil.' },
-      { id: 'e2', title: 'Envíos al Interior', content: 'Realizamos despachos a todo el país a través de Andreani y Correo Argentino. El tiempo estimado de llegada dependerá de la localidad, generalmente rondando los 3 a 7 días hábiles tras confirmar el pago.' },
+      { id: 'e2', title: 'Envíos al Interior', content: 'Realizamos despachos a todo el país a través de Andreani, Correo Argentino y VIACARGO. El tiempo estimado de llegada dependerá de la localidad, generalmente rondando los 3 a 7 días hábiles tras confirmar el pago.' },
       { id: 'e3', title: 'Seguimiento', content: 'Una vez despachado el producto, vas a recibir un código de seguimiento por correo electrónico (o WhatsApp, según prefieras) con el que vas a poder verificar la ubicación de tu compra en tiempo real desde la plataforma del correo asignado.' },
     ]
   },
