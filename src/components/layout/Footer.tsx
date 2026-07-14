@@ -28,7 +28,7 @@ const Footer = () => {
           </Grid>
 
           {/* Quick Links Column */}
-          <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+          <Grid size={{ xs: 12, sm: 3, md: 1.5 }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"
@@ -73,7 +73,7 @@ const Footer = () => {
           </Grid>
 
           {/* Mini Mapa Column */}
-          <Grid size={{ xs: 12, sm: 4, md: 2.5 }} sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+          <Grid size={{ xs: 12, sm: 4, md: 2.5 }} sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-start' }, alignItems: 'flex-start', pl: { xs: 0, md: '0px !important' } }}>
             <Box 
               sx={{ 
                 width: '100%', 
@@ -103,7 +103,7 @@ const Footer = () => {
           </Grid>
 
           {/* Contact Column */}
-          <Grid size={{ xs: 12, sm: 5, md: 4.5 }}>
+          <Grid size={{ xs: 12, sm: 5, md: 5 }} sx={{ pl: { xs: 0, md: '20px !important' } }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"
