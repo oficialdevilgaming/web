@@ -13,7 +13,7 @@ const Footer = () => {
       <Container maxWidth="xl">
         <Grid container spacing={5}>
           {/* Brand & Copyright */}
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Stack spacing={2}>
               <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main', letterSpacing: 1 }}>
                 DEVIL{" "}<span style={{ color: 'white' }}>GAMING</span>
@@ -28,7 +28,7 @@ const Footer = () => {
           </Grid>
 
           {/* Quick Links Column */}
-          <Grid size={{ xs: 12, sm: 4, md: 2 }}>
+          <Grid size={{ xs: 12, sm: 3, md: 2 }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"
@@ -73,13 +73,13 @@ const Footer = () => {
           </Grid>
 
           {/* Mini Mapa Column */}
-          <Grid size={{ xs: 12, sm: 4, md: 2.5 }} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+          <Grid size={{ xs: 12, sm: 4, md: 2.5 }} sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
             <Box 
               sx={{ 
                 width: '100%', 
-                maxWidth: { xs: '100%', sm: 250, md: 240 },
+                maxWidth: { xs: '100%', sm: 250, md: 280 },
                 height: 170, 
-                borderRadius: 4, 
+                borderRadius: 2, 
                 overflow: 'hidden', 
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
@@ -103,7 +103,7 @@ const Footer = () => {
           </Grid>
 
           {/* Contact Column */}
-          <Grid size={{ xs: 12, sm: 4, md: 3.5 }}>
+          <Grid size={{ xs: 12, sm: 5, md: 4.5 }}>
             <Stack spacing={3}>
               <Typography
                 variant="h6"
