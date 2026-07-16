@@ -161,6 +161,17 @@ const css = `
     z-index: 2;
   }
 
+  /* Destacado overlay */
+  .pd-badge-featured {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
   /* Thumbnails strip */
   .pd-thumbs-left {
     display: flex;
@@ -604,7 +615,7 @@ export default function ProductDetailPage() {
 
         const { data: rel } = await supabase
           .from('products')
-          .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
+          .select('id, name, price, discount, stock, images, category_id, featured, category:categories(name)')
           .eq('category_id', pData.category_id)
           .neq('id', id)
           .eq('is_hidden', false)
@@ -757,6 +768,11 @@ export default function ProductDetailPage() {
                 <div className="pd-main-img-box">
                   {product.discount > 0 && (
                     <div className="pd-img-flag" style={{ zIndex: 3 }}>−{product.discount}%</div>
+                  )}
+                  {product.featured && (
+                    <div className="pd-badge-featured" style={{ zIndex: 3 }}>
+                      <Star size={20} fill="#FFD700" color="#FFD700" strokeWidth={1.5} style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }} />
+                    </div>
                   )}
                   {!imageLoaded && <div className="pd-skeleton-bg" />}
                   <AnimatePresence mode="wait">

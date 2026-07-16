@@ -509,7 +509,7 @@ const HomePage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
+        .select('id, name, price, discount, stock, images, category_id, featured, category:categories(name)')
         .eq('featured', true)
         .eq('is_hidden', false)
         .limit(8);
