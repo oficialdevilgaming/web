@@ -166,12 +166,14 @@ const ShopContent = () => {
         if (catsData) {
           const activeSet = new Set(productsData?.map(p => p.category_id) || []);
           
-          const isCategoryActive = (catId: string, allCats: any[]): boolean => {
+          const isCategoryActive = (catId: string, allCats: any[], visited = new Set<string>()): boolean => {
+            if (visited.has(catId)) return false;
+            visited.add(catId);
             const cat = allCats.find(c => c.id === catId);
             if (cat && isAlwaysVisibleCategory(cat.name)) return true;
             if (activeSet.has(catId)) return true;
             const children = allCats.filter(c => c.parent_id === catId);
-            return children.some(child => isCategoryActive(child.id, allCats));
+            return children.some(child => isCategoryActive(child.id, allCats, visited));
           };
 
           const activeCatsData = catsData.filter(cat => isCategoryActive(cat.id, catsData));

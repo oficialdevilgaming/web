@@ -37,7 +37,7 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail, Store } from 'lucide-react';
+import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail, Store, IdCard, StickyNote } from 'lucide-react';
 import { useState, useEffect, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
@@ -1876,6 +1876,7 @@ const OrdersManagement = () => {
           <Stack spacing={3} sx={{ py: 2 }}>
             <Box>
               <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Información del Cliente</Typography>
+              <Stack spacing={3}>
               <Grid container spacing={3}>
                 {/* Nombre */}
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -2036,8 +2037,10 @@ const OrdersManagement = () => {
                     </Box>
                   </Stack>
                 </Grid>
+              </Grid>
 
-                {/* Tipo de Envío */}
+              {/* Tipo de Envío + DNI (fila propia, siempre emparejados en desktop) */}
+              <Grid container spacing={3}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: selectedOrder?.delivery_method === 'store_pickup' ? 'rgba(76,175,80,0.15)' : 'rgba(33,150,243,0.15)', color: selectedOrder?.delivery_method === 'store_pickup' ? '#2e7d32' : '#1565c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -2058,7 +2061,24 @@ const OrdersManagement = () => {
                   </Stack>
                 </Grid>
 
-                {/* Dirección */}
+                {/* DNI */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <IdCard size={18} />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">DNI</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: !selectedOrder?.dni ? 'text.disabled' : 'inherit' }}>
+                        {selectedOrder?.dni || '—'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
+              </Grid>
+
+              {/* Dirección + Especificaciones para entrega */}
+              <Grid container spacing={3}>
                 <Grid size={{ xs: 12 }}>
                   <Divider sx={{ my: 1, borderStyle: 'dotted' }} />
                   <Stack direction="row" spacing={2} alignItems="center">
@@ -2079,7 +2099,23 @@ const OrdersManagement = () => {
                     </Box>
                   </Stack>
                 </Grid>
+
+                {/* Especificaciones para entrega */}
+                <Grid size={{ xs: 12 }}>
+                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.05)', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <StickyNote size={18} />
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" color="text.secondary">Especificaciones para Entrega</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: (selectedOrder?.delivery_method === 'store_pickup' || !selectedOrder?.delivery_notes) ? 'text.disabled' : 'inherit', overflowWrap: 'anywhere' }}>
+                        {selectedOrder?.delivery_method === 'store_pickup' ? '—' : (selectedOrder?.delivery_notes || '—')}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
               </Grid>
+              </Stack>
             </Box>
 
             <Divider />

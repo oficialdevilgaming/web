@@ -42,15 +42,17 @@ const CheckoutPage = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    dni: '',
     address: '',
     city: '',
     zipCode: '',
     phone: '',
-    email: ''
+    email: '',
+    deliveryNotes: ''
   });
   const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -66,6 +68,7 @@ const CheckoutPage = () => {
   const isFormValid =
     formData.firstName &&
     formData.lastName &&
+    formData.dni &&
     formData.phone &&
     formData.email &&
     (deliveryMethod === 'store_pickup' || (formData.address && formData.city && formData.zipCode));
@@ -99,11 +102,13 @@ const CheckoutPage = () => {
       // 2. Registrar pedido en Supabase
       const newOrder = {
         customer_name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
+        dni: formData.dni.trim(),
         phone: formData.phone || '',
         email: formData.email || '',
         address: deliveryMethod === 'store_pickup' ? null : (formData.address || ''),
         city: deliveryMethod === 'store_pickup' ? null : (formData.city || ''),
         zip_code: deliveryMethod === 'store_pickup' ? null : (formData.zipCode || ''),
+        delivery_notes: deliveryMethod === 'store_pickup' ? null : (formData.deliveryNotes.trim() || null),
         total: Number(total) || 0,
         status: 'Pendiente',
         delivery_method: deliveryMethod,
@@ -173,9 +178,11 @@ const CheckoutPage = () => {
       const message = `*NUEVO PEDIDO: #${orderId}*\n\n` +
         `*Tipo de envío:* ${deliveryMethod === 'store_pickup' ? 'Recoger en tienda' : 'Enviar a domicilio'}\n` +
         `*Cliente:* ${formData.firstName} ${formData.lastName}\n` +
+        `*DNI:* ${formData.dni}\n` +
         `*Email:* ${formData.email}\n` +
         `*Teléfono:* ${formData.phone}\n` +
         (deliveryMethod === 'store_pickup' ? '' : `*Dirección:* ${formData.address}, ${formData.city}\n`) +
+        (deliveryMethod === 'store_pickup' || !formData.deliveryNotes.trim() ? '' : `*Especificaciones de entrega:* ${formData.deliveryNotes.trim()}\n`) +
         `\n*Productos:*\n` +
         state.items.map((item: any) => {
           const effPrice = item.price * (1 - (item.discount || 0) / 100);
@@ -288,6 +295,9 @@ const CheckoutPage = () => {
         <Grid size={12}>
           <TextField fullWidth label="Teléfono (WhatsApp)" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="Ej: +54 9 11 ..." />
         </Grid>
+        <Grid size={12}>
+          <TextField fullWidth label="DNI" name="dni" value={formData.dni} onChange={handleInputChange} required placeholder="Ej: 30123456" inputProps={{ maxLength: 20 }} />
+        </Grid>
 
         {deliveryMethod === 'home_delivery' && (
           <>
@@ -299,6 +309,20 @@ const CheckoutPage = () => {
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Código Postal" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
+            </Grid>
+            <Grid size={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Especificaciones para entrega (Opcional)"
+                name="deliveryNotes"
+                value={formData.deliveryNotes}
+                onChange={handleInputChange}
+                placeholder="Ej: Timbre roto, tocar puerta lateral, dejar en portería..."
+                inputProps={{ maxLength: 200 }}
+                helperText={`${200 - formData.deliveryNotes.length} caracteres restantes`}
+              />
             </Grid>
           </>
         )}
