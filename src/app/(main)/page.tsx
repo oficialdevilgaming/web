@@ -18,9 +18,10 @@ import Link from 'next/link';
 interface HeroProps {
   banners: any[];
   loading: boolean;
+  showVideo: boolean;
 }
 
-const Hero = ({ banners, loading }: HeroProps) => {
+const Hero = ({ banners, loading, showVideo }: HeroProps) => {
   if (loading) {
     return (
       <Box sx={{
@@ -51,23 +52,25 @@ const Hero = ({ banners, loading }: HeroProps) => {
         py: { xs: 6, md: 0 }
       }}>
         {/* Video Background */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 0,
-          }}
-        >
-          <source src="/hero-bg.mp4" type="video/mp4" />
-        </video>
+        {showVideo && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0,
+            }}
+          >
+            <source src="/hero-bg.mp4" type="video/mp4" />
+          </video>
+        )}
 
         {/* Video Overlay / Darkening Gradient */}
         <Box sx={{
@@ -142,7 +145,7 @@ const Hero = ({ banners, loading }: HeroProps) => {
                     transition: 'all 0.3s'
                   }}
                 >
-                  Explorar Arsenal
+                  Explorar Inventario
                 </Button>
               </Stack>
             </Grid>
@@ -191,124 +194,126 @@ const Hero = ({ banners, loading }: HeroProps) => {
         style={{ width: '100%', height: '100%' }}
       >
         {/* Video Slide (Always First) */}
-        <SwiperSlide key="hero-video">
-          <Box sx={{
-            width: '100%',
-            height: '100%',
-            minHeight: { xs: '340px', sm: '440px', md: '550px' },
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            overflow: 'hidden',
-          }}>
-            {/* Video Background */}
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{
+        {showVideo && (
+          <SwiperSlide key="hero-video">
+            <Box sx={{
+              width: '100%',
+              height: '100%',
+              minHeight: { xs: '340px', sm: '440px', md: '550px' },
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              overflow: 'hidden',
+            }}>
+              {/* Video Background */}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  zIndex: 0,
+                }}
+              >
+                <source src="/hero-bg.mp4" type="video/mp4" />
+              </video>
+
+              {/* Video Overlay / Darkening Gradient */}
+              <Box sx={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                zIndex: 0,
-              }}
-            >
-              <source src="/hero-bg.mp4" type="video/mp4" />
-            </video>
+                background: `
+                  linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)),
+                  radial-gradient(at 0% 0%, rgba(204, 0, 0, 0.2) 0px, transparent 50%),
+                  radial-gradient(at 100% 100%, rgba(204, 0, 0, 0.2) 0px, transparent 50%)
+                `,
+                zIndex: 1,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  backgroundImage: 'url("https://www.transparenttextures.com/patterns/carbon-fibre.png")',
+                  opacity: 0.1,
+                }
+              }} />
 
-            {/* Video Overlay / Darkening Gradient */}
-            <Box sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              background: `
-                linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)),
-                radial-gradient(at 0% 0%, rgba(204, 0, 0, 0.2) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(204, 0, 0, 0.2) 0px, transparent 50%)
-              `,
-              zIndex: 1,
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                backgroundImage: 'url("https://www.transparenttextures.com/patterns/carbon-fibre.png")',
-                opacity: 0.1,
-              }
-            }} />
-
-            <Container
-              maxWidth="xl"
-              sx={{
-                position: 'relative',
-                zIndex: 2,
-                py: { xs: 4, sm: 6, md: 0 },
-                px: { xs: '50px', sm: '60px', md: '90px' },
-              }}
-            >
-              <Grid container spacing={4} alignItems="center">
-                <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 900, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' }, letterSpacing: { xs: 3, md: 5 }, display: 'block', mb: 1 }}>
-                    ESTÁNDAR DE ÉLITE
-                  </Typography>
-                  <Typography variant="h1" color="white" sx={{
-                    mb: 1.5,
-                    fontSize: { xs: '1.5rem', sm: '2.4rem', md: '3.4rem' },
-                    lineHeight: 1.1,
-                    fontWeight: 900,
-                    textTransform: 'none',
-                    textShadow: '0 10px 30px rgba(0,0,0,0.5)'
-                  }}>
-                    Potencia tu setup<br />
-                    con{' '}
-                    <motion.span
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.7, ease: "easeOut" }}
-                      style={{
-                        display: 'inline-block',
-                        textShadow: '0 0 40px rgba(255,0,0,0.6)'
-                      }}
-                    >
-                      <span style={{ color: '#cc0000' }}>Devil</span>{' '}
-                      <span style={{ color: '#ffffff' }}>Gaming</span>
-                    </motion.span>
-                  </Typography>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 2.5 }} sx={{ mt: { xs: 2.5, sm: 0 } }}>
-                    <Button
-                      component={Link}
-                      href="/shop"
-                      variant="contained"
-                      size="large"
-                      endIcon={<ArrowRight />}
-                      sx={{
-                        py: { xs: 0.8, sm: 1.5 },
-                        px: { xs: 3, sm: 4 },
-                        fontSize: { xs: '0.82rem', sm: '0.95rem' },
-                        fontWeight: 700,
-                        borderRadius: 3,
-                        boxShadow: '0 10px 20px rgba(204, 0, 0, 0.3)',
-                        '&:hover': {
-                          transform: 'translateY(-3px)',
-                          boxShadow: '0 15px 30px rgba(204, 0, 0, 0.4)',
-                        },
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      Explorar Arsenal
-                    </Button>
-                  </Stack>
+              <Container
+                maxWidth="xl"
+                sx={{
+                  position: 'relative',
+                  zIndex: 2,
+                  py: { xs: 4, sm: 6, md: 0 },
+                  px: { xs: '50px', sm: '60px', md: '90px' },
+                }}
+              >
+                <Grid container spacing={4} alignItems="center">
+                  <Grid size={{ xs: 12, md: 7 }}>
+                    <Typography variant="overline" color="primary.main" sx={{ fontWeight: 900, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' }, letterSpacing: { xs: 3, md: 5 }, display: 'block', mb: 1 }}>
+                      ESTÁNDAR DE ÉLITE
+                    </Typography>
+                    <Typography variant="h1" color="white" sx={{
+                      mb: 1.5,
+                      fontSize: { xs: '1.5rem', sm: '2.4rem', md: '3.4rem' },
+                      lineHeight: 1.1,
+                      fontWeight: 900,
+                      textTransform: 'none',
+                      textShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}>
+                      Potencia tu setup<br />
+                      con{' '}
+                      <motion.span
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
+                        style={{
+                          display: 'inline-block',
+                          textShadow: '0 0 40px rgba(255,0,0,0.6)'
+                        }}
+                      >
+                        <span style={{ color: '#cc0000' }}>Devil</span>{' '}
+                        <span style={{ color: '#ffffff' }}>Gaming</span>
+                      </motion.span>
+                    </Typography>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 2.5 }} sx={{ mt: { xs: 2.5, sm: 0 } }}>
+                      <Button
+                        component={Link}
+                        href="/shop"
+                        variant="contained"
+                        size="large"
+                        endIcon={<ArrowRight />}
+                        sx={{
+                          py: { xs: 0.8, sm: 1.5 },
+                          px: { xs: 3, sm: 4 },
+                          fontSize: { xs: '0.82rem', sm: '0.95rem' },
+                          fontWeight: 700,
+                          borderRadius: 3,
+                          boxShadow: '0 10px 20px rgba(204, 0, 0, 0.3)',
+                          '&:hover': {
+                            transform: 'translateY(-3px)',
+                            boxShadow: '0 15px 30px rgba(204, 0, 0, 0.4)',
+                          },
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        Explorar Inventario
+                      </Button>
+                    </Stack>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </Container>
-          </Box>
-        </SwiperSlide>
+              </Container>
+            </Box>
+          </SwiperSlide>
+        )}
 
         {banners.map((banner) => (
           <SwiperSlide key={banner.id}>
@@ -496,6 +501,7 @@ const HomePage = () => {
   const [banners, setBanners] = useState<any[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -503,10 +509,10 @@ const HomePage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, discount, stock, images, category_id, category:categories(name)')
+        .select('id, name, price, discount, stock, images, category_id, featured, category:categories(name)')
         .eq('featured', true)
         .eq('is_hidden', false)
-        .limit(8);
+        .limit(24);
 
       if (!error) {
         setFeaturedProducts(data || []);
@@ -533,13 +539,29 @@ const HomePage = () => {
       }
     };
 
+    const fetchSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('show_video_banner')
+          .eq('id', 1)
+          .single();
+        if (!error && data && data.show_video_banner !== undefined) {
+          setShowVideo(data.show_video_banner !== false);
+        }
+      } catch (err) {
+        console.error("Error fetching settings:", err);
+      }
+    };
+
     fetchFeatured();
     fetchBanners();
+    fetchSettings();
   }, []);
 
   return (
     <Box>
-      <Hero banners={banners} loading={bannersLoading} />
+      <Hero banners={banners} loading={bannersLoading} showVideo={showVideo} />
 
       {/* GPU Trade-in Service Section */}
       <Container maxWidth="xl" sx={{ py: 4 }}>

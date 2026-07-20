@@ -86,7 +86,7 @@ const ShopContent = () => {
     try {
       let query = supabase
         .from('products')
-        .select('id, name, price, discount, final_price, stock, images, category_id, category:categories(name)', { count: 'exact' })
+        .select('id, name, price, discount, final_price, stock, images, category_id, featured, category:categories(name)', { count: 'exact' })
         .eq('is_hidden', false);
 
       // Apply Filters
@@ -104,25 +104,8 @@ const ShopContent = () => {
           // forzamos a que no traiga productos en vez de mostrar todo (por ej. consolas).
           query = query.eq('category_id', '00000000-0000-0000-0000-000000000000');
         }
-      } else if (!category && categories.length > 0 && !featuredFilter && !discountFilter) {
-        // Cuando no hay categoría seleccionada y NO se filtró por destacados,
-        // excluir las categorías especiales (PC Armadas, Outlet) del listado general.
-        // Si featuredFilter está activo, mostramos TODOS los productos marcados como
-        // destacados sin importar su categoría.
-        const specialCats = categories.filter(c => {
-          const lower = c.name.toLowerCase();
-          return lower.includes('armada') || lower.includes('outlet');
-        });
-
-        let forbiddenIds: string[] = [];
-        specialCats.forEach(sc => {
-          forbiddenIds = [...forbiddenIds, ...getRecursiveIds(sc.id, categories)];
-        });
-
-        if (forbiddenIds.length > 0) {
-          query = query.not('category_id', 'in', `(${forbiddenIds.join(',')})`);
-        }
       }
+      // Sin categoría seleccionada → se muestran TODOS los productos no ocultos (sin exclusiones)
 
       if (minPrice > 0) query = query.gte('final_price', minPrice);
       if (maxPrice < 10000000) query = query.lte('final_price', maxPrice);
@@ -183,12 +166,14 @@ const ShopContent = () => {
         if (catsData) {
           const activeSet = new Set(productsData?.map(p => p.category_id) || []);
           
-          const isCategoryActive = (catId: string, allCats: any[]): boolean => {
+          const isCategoryActive = (catId: string, allCats: any[], visited = new Set<string>()): boolean => {
+            if (visited.has(catId)) return false;
+            visited.add(catId);
             const cat = allCats.find(c => c.id === catId);
             if (cat && isAlwaysVisibleCategory(cat.name)) return true;
             if (activeSet.has(catId)) return true;
             const children = allCats.filter(c => c.parent_id === catId);
-            return children.some(child => isCategoryActive(child.id, allCats));
+            return children.some(child => isCategoryActive(child.id, allCats, visited));
           };
 
           const activeCatsData = catsData.filter(cat => isCategoryActive(cat.id, catsData));

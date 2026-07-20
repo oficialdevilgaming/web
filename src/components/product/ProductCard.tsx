@@ -10,7 +10,7 @@ import {
   Chip,
   Skeleton,
 } from '@mui/material';
-import { ShoppingCart, Check } from 'lucide-react';
+import { ShoppingCart, Check, Star } from 'lucide-react';
 import Link from 'next/link';
 
 import Image from 'next/image';
@@ -160,29 +160,47 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, layout = 'grid', sma
             </Box>
           )}
 
-          {/* Sin Stock badge (Top-Right) */}
-          {isOutOfStock && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: small ? { xs: 3, sm: 6 } : { xs: 4, sm: 8 },
-                right: small ? { xs: 3, sm: 6 } : { xs: 4, sm: 8 },
-                zIndex: 3,
-                bgcolor: '#111',
-                color: 'white',
-                fontWeight: 900,
-                fontSize: small ? { xs: '0.52rem', sm: '0.6rem' } : { xs: '0.6rem', sm: '0.7rem' },
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                padding: small ? { xs: '2px 6px', sm: '4px 9px' } : { xs: '3px 8px', sm: '5px 12px' },
-                borderRadius: '100px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Sin Stock</Box>
-              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Agotado</Box>
-            </Box>
-          )}
+          {/* Top-Right badge stack: Destacado + Sin Stock (stacked so they never overlap) */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: small ? { xs: 3, sm: 6 } : { xs: 4, sm: 8 },
+              right: small ? { xs: 3, sm: 6 } : { xs: 4, sm: 8 },
+              zIndex: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: small ? '4px' : '6px',
+            }}
+          >
+            {product.featured && (
+              <Star
+                size={20}
+                fill="#FFD700"
+                color="#FFD700"
+                strokeWidth={1.5}
+                style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }}
+              />
+            )}
+            {isOutOfStock && (
+              <Box
+                sx={{
+                  bgcolor: '#111',
+                  color: 'white',
+                  fontWeight: 900,
+                  fontSize: small ? { xs: '0.52rem', sm: '0.6rem' } : { xs: '0.6rem', sm: '0.7rem' },
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  padding: small ? { xs: '2px 6px', sm: '4px 9px' } : { xs: '3px 8px', sm: '5px 12px' },
+                  borderRadius: '100px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                }}
+              >
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Sin Stock</Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Agotado</Box>
+              </Box>
+            )}
+          </Box>
         </Box>
 
         <CardContent sx={{

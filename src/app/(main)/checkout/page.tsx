@@ -30,6 +30,19 @@ import { supabase } from '../../../lib/supabase';
 
 const steps = ['Contacto y Envío', 'Confirmación'];
 
+type RequiredField = 'firstName' | 'lastName' | 'dni' | 'email' | 'phone' | 'address' | 'city' | 'zipCode';
+
+const REQUIRED_FIELD_LABELS: Record<RequiredField, string> = {
+  firstName: 'Nombre',
+  lastName: 'Apellidos',
+  dni: 'DNI',
+  email: 'Correo Electrónico',
+  phone: 'Teléfono',
+  address: 'Dirección de Envío',
+  city: 'Ciudad',
+  zipCode: 'Código Postal',
+};
+
 const CheckoutPage = () => {
   const { state, dispatch } = useCart();
   const router = useRouter();
@@ -37,21 +50,45 @@ const CheckoutPage = () => {
   const [whatsappUrl, setWhatsappUrl] = useState('');
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorModalMsg, setErrorModalMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<RequiredField, string>>>({});
 
   // Form State
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    dni: '',
     address: '',
     city: '',
     zipCode: '',
     phone: '',
-    email: ''
+    email: '',
+    deliveryNotes: ''
   });
   const [deliveryMethod, setDeliveryMethod] = useState<'home_delivery' | 'store_pickup'>('home_delivery');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => {
+      if (!(name in prev)) return prev;
+      const next = { ...prev };
+      delete next[name as RequiredField];
+      return next;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const required: RequiredField[] = ['firstName', 'lastName', 'dni', 'email', 'phone'];
+    if (deliveryMethod === 'home_delivery') required.push('address', 'city', 'zipCode');
+
+    const errors: Partial<Record<RequiredField, string>> = {};
+    required.forEach((key) => {
+      if (!formData[key]?.trim()) {
+        errors[key] = `Completar ${REQUIRED_FIELD_LABELS[key]}`;
+      }
+    });
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const originalSubtotal = state.items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
@@ -63,17 +100,15 @@ const CheckoutPage = () => {
   const shipping = deliveryMethod === 'store_pickup' ? 0 : (subtotal > 500 ? 0 : 15);
   const total = subtotal + shipping;
 
-  const isFormValid =
-    formData.firstName &&
-    formData.lastName &&
-    formData.phone &&
-    formData.email &&
-    (deliveryMethod === 'store_pickup' || (formData.address && formData.city && formData.zipCode));
-
   const isCartValid = state.items.length > 0;
 
   const handleNext = async () => {
     if (activeStep === 0) {
+      // 0. Validar campos obligatorios (inline, sin modal)
+      if (!validateForm()) {
+        return;
+      }
+
       // 1. Validar stock disponible antes de crear el pedido
       const itemIds = state.items.map((item: any) => item.id);
       const { data: productsStock } = await supabase
@@ -99,11 +134,13 @@ const CheckoutPage = () => {
       // 2. Registrar pedido en Supabase
       const newOrder = {
         customer_name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
+        dni: formData.dni.trim(),
         phone: formData.phone || '',
         email: formData.email || '',
         address: deliveryMethod === 'store_pickup' ? null : (formData.address || ''),
         city: deliveryMethod === 'store_pickup' ? null : (formData.city || ''),
         zip_code: deliveryMethod === 'store_pickup' ? null : (formData.zipCode || ''),
+        delivery_notes: deliveryMethod === 'store_pickup' ? null : (formData.deliveryNotes.trim() || null),
         total: Number(total) || 0,
         status: 'Pendiente',
         delivery_method: deliveryMethod,
@@ -114,12 +151,6 @@ const CheckoutPage = () => {
           price: Number(item.price) * (1 - (item.discount || 0) / 100)
         }))
       };
-
-      if (!isFormValid) {
-        setErrorModalMsg('Completa todos los campos antes de continuar.');
-        setErrorModalOpen(true);
-        return;
-      }
 
       if (!isCartValid) {
         setErrorModalMsg('Tu carrito está vacío.');
@@ -173,9 +204,11 @@ const CheckoutPage = () => {
       const message = `*NUEVO PEDIDO: #${orderId}*\n\n` +
         `*Tipo de envío:* ${deliveryMethod === 'store_pickup' ? 'Recoger en tienda' : 'Enviar a domicilio'}\n` +
         `*Cliente:* ${formData.firstName} ${formData.lastName}\n` +
+        `*DNI:* ${formData.dni}\n` +
         `*Email:* ${formData.email}\n` +
         `*Teléfono:* ${formData.phone}\n` +
         (deliveryMethod === 'store_pickup' ? '' : `*Dirección:* ${formData.address}, ${formData.city}\n`) +
+        (deliveryMethod === 'store_pickup' || !formData.deliveryNotes.trim() ? '' : `*Especificaciones de entrega:* ${formData.deliveryNotes.trim()}\n`) +
         `\n*Productos:*\n` +
         state.items.map((item: any) => {
           const effPrice = item.price * (1 - (item.discount || 0) / 100);
@@ -275,30 +308,62 @@ const CheckoutPage = () => {
         </Alert>
       )}
 
-      <Grid container spacing={2}>
+      <Grid
+        container
+        spacing={2}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            '&:hover:not(.Mui-error) .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#000',
+            },
+            '&.Mui-focused:not(.Mui-error) .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#000',
+            },
+          },
+          '& .MuiInputLabel-root.Mui-focused:not(.Mui-error)': {
+            color: '#000',
+          },
+        }}
+      >
         <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField fullWidth label="Nombre" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
+          <TextField fullWidth label="Nombre" name="firstName" value={formData.firstName} onChange={handleInputChange} required error={!!fieldErrors.firstName} helperText={fieldErrors.firstName} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <TextField fullWidth label="Apellidos" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
+          <TextField fullWidth label="Apellidos" name="lastName" value={formData.lastName} onChange={handleInputChange} required error={!!fieldErrors.lastName} helperText={fieldErrors.lastName} />
         </Grid>
         <Grid size={12}>
-          <TextField fullWidth type="email" label="Correo Electrónico" name="email" value={formData.email} onChange={handleInputChange} required />
+          <TextField fullWidth type="email" label="Correo Electrónico" name="email" value={formData.email} onChange={handleInputChange} required error={!!fieldErrors.email} helperText={fieldErrors.email} />
         </Grid>
         <Grid size={12}>
-          <TextField fullWidth label="Teléfono (WhatsApp)" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="Ej: +54 9 11 ..." />
+          <TextField fullWidth label="Teléfono (WhatsApp)" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="Ej: +54 9 11 ..." error={!!fieldErrors.phone} helperText={fieldErrors.phone} />
+        </Grid>
+        <Grid size={12}>
+          <TextField fullWidth label="DNI" name="dni" value={formData.dni} onChange={handleInputChange} required placeholder="Ej: 30123456" slotProps={{ htmlInput: { maxLength: 20 } }} error={!!fieldErrors.dni} helperText={fieldErrors.dni} />
         </Grid>
 
         {deliveryMethod === 'home_delivery' && (
           <>
             <Grid size={12}>
-              <TextField fullWidth label="Dirección de Envío" name="address" value={formData.address} onChange={handleInputChange} required />
+              <TextField fullWidth label="Dirección de Envío" name="address" value={formData.address} onChange={handleInputChange} required error={!!fieldErrors.address} helperText={fieldErrors.address} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Ciudad" name="city" value={formData.city} onChange={handleInputChange} required />
+              <TextField fullWidth label="Ciudad" name="city" value={formData.city} onChange={handleInputChange} required error={!!fieldErrors.city} helperText={fieldErrors.city} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField fullWidth label="Código Postal" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
+              <TextField fullWidth label="Código Postal" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required error={!!fieldErrors.zipCode} helperText={fieldErrors.zipCode} />
+            </Grid>
+            <Grid size={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Especificaciones para entrega (opcional)"
+                name="deliveryNotes"
+                value={formData.deliveryNotes}
+                onChange={handleInputChange}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                helperText={`${200 - formData.deliveryNotes.length} caracteres restantes`}
+              />
             </Grid>
           </>
         )}
