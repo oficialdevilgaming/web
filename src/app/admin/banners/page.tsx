@@ -399,7 +399,7 @@ const BannersManagement = () => {
           </Box>
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              Video Banner por Defecto
+              Video Banner 
             </Typography>
           </Box>
         </Stack>

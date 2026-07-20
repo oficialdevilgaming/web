@@ -31,7 +31,7 @@ import {
   Tooltip,
   MenuItem
 } from '@mui/material';
-import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye, EyeOff, Warehouse, Home } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
 import { useAlert } from '../../../context/AlertContext';
@@ -52,6 +52,7 @@ type Product = {
   featured?: boolean;
   discount?: number;
   is_hidden?: boolean;
+  location?: 'casa' | 'deposito';
 };
 
 type Category = {
@@ -101,7 +102,8 @@ const ProductsManagement = () => {
     featured: false,
     images: [] as string[],
     discount: '' as number | string,
-    is_hidden: false
+    is_hidden: false,
+    location: 'casa' as 'casa' | 'deposito'
   });
 
   // Filtros y Paginación
@@ -207,7 +209,8 @@ const ProductsManagement = () => {
       featured: product?.featured || false,
       images: product?.images || [],
       discount: product?.discount != null ? product.discount : '',
-      is_hidden: product?.is_hidden || false
+      is_hidden: product?.is_hidden || false,
+      location: product?.location || 'casa'
     });
     setSelectedParentId(product?.category?.parent_id || '');
     setSelectedFiles([]);
@@ -364,7 +367,8 @@ const ProductsManagement = () => {
       featured: formValues.featured,
       images: finalImages,
       discount: formValues.discount !== '' ? Number(formValues.discount) : null,
-      is_hidden: formValues.is_hidden
+      is_hidden: formValues.is_hidden,
+      location: formValues.location
     };
 
     try {
@@ -550,6 +554,7 @@ const ProductsManagement = () => {
                 <TableCell sx={{ fontWeight: 700 }}>Producto</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Categoría</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Dest.</TableCell>
+                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Ubicación</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Precio</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Stock / Estado</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
@@ -557,10 +562,10 @@ const ProductsManagement = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} align="center">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} align="center">Cargando...</TableCell></TableRow>
               ) : allProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
                       No hay productos
                     </Typography>
@@ -606,6 +611,22 @@ const ProductsManagement = () => {
                           <Star size={20} fill="#FFD700" color="#FFD700" />
                         </Tooltip>
                       )}
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                      <Chip
+                        label={product.location === 'deposito' ? 'Depósito' : 'Casa'}
+                        size="small"
+                        icon={product.location === 'deposito' ? <Warehouse size={14} /> : <Home size={14} />}
+                        color={product.location === 'deposito' ? 'success' : undefined}
+                        sx={{
+                          fontWeight: 600,
+                          ...(product.location !== 'deposito' && {
+                            bgcolor: 'rgba(3,169,244,0.12)',
+                            color: '#0288d1',
+                            '& .MuiChip-icon': { color: '#0288d1' }
+                          })
+                        }}
+                      />
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>${product.price.toLocaleString('es-ES')}</TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
@@ -715,6 +736,25 @@ const ProductsManagement = () => {
                                 <Star size={16} fill="#FFD700" color="#FFD700" />
                               </Stack>
                             )}
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Ubicación</Typography>
+                              <Chip
+                                label={product.location === 'deposito' ? 'Depósito' : 'Casa'}
+                                size="small"
+                                icon={product.location === 'deposito' ? <Warehouse size={14} /> : <Home size={14} />}
+                                color={product.location === 'deposito' ? 'success' : undefined}
+                                sx={{
+                                  fontWeight: 600,
+                                  height: 20,
+                                  fontSize: '0.7rem',
+                                  ...(product.location !== 'deposito' && {
+                                    bgcolor: 'rgba(3,169,244,0.12)',
+                                    color: '#0288d1',
+                                    '& .MuiChip-icon': { color: '#0288d1' }
+                                  })
+                                }}
+                              />
+                            </Stack>
                           </Stack>
                         </Box>
                       </Collapse>
@@ -856,7 +896,7 @@ const ProductsManagement = () => {
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <Stack spacing={3}>
-                <Box sx={{ p: 2, bgcolor: 'rgba(255,215,0,0.05)', borderRadius: 3, border: '1px solid rgba(255,215,0,0.2)' }}>
+                <Box sx={{ py: 1.25, px: 2, bgcolor: 'rgba(255,215,0,0.05)', borderRadius: 3, border: '1px solid rgba(255,215,0,0.2)' }}>
                   <FormControlLabel
                     sx={{
                       width: '100%',
@@ -879,7 +919,7 @@ const ProductsManagement = () => {
                   />
                 </Box>
 
-                <Box sx={{ p: 2, bgcolor: 'rgba(244,244,245,0.8)', borderRadius: 3, border: '1px solid rgba(161,161,170,0.4)' }}>
+                <Box sx={{ py: 1.25, px: 2, bgcolor: 'rgba(244,244,245,0.8)', borderRadius: 3, border: '1px solid rgba(161,161,170,0.4)' }}>
                   <FormControlLabel
                     sx={{
                       width: '100%',
@@ -900,6 +940,44 @@ const ProductsManagement = () => {
                           <EyeOff size={20} color="#cc0000" />
                         ) : (
                           <Eye size={20} color="#2e7d32" />
+                        )}
+                      </Box>
+                    }
+                  />
+                </Box>
+
+                <Box sx={{
+                  py: 1.25,
+                  px: 2,
+                  bgcolor: formValues.location === 'deposito' ? 'rgba(46,125,50,0.08)' : 'rgba(3,169,244,0.08)',
+                  borderRadius: 3,
+                  border: formValues.location === 'deposito' ? '1px solid rgba(46,125,50,0.3)' : '1px solid rgba(3,169,244,0.3)'
+                }}>
+                  <FormControlLabel
+                    sx={{
+                      width: '100%',
+                      m: 0,
+                      '& .MuiFormControlLabel-label': { flex: 1 }
+                    }}
+                    control={
+                      <Switch
+                        checked={formValues.location === 'deposito'}
+                        onChange={(e) => setFormValues({ ...formValues, location: e.target.checked ? 'deposito' : 'casa' })}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': { color: '#2e7d32' },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#2e7d32' },
+                          '& .MuiSwitch-switchBase': { color: '#03a9f4' },
+                          '& .MuiSwitch-track': { backgroundColor: '#03a9f4' }
+                        }}
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontWeight: 700 }}>Ubicación: {formValues.location === 'deposito' ? 'Depósito' : 'Casa'}</Typography>
+                        {formValues.location === 'deposito' ? (
+                          <Warehouse size={20} color="#2e7d32" />
+                        ) : (
+                          <Home size={20} color="#03a9f4" />
                         )}
                       </Box>
                     }
