@@ -496,7 +496,7 @@ const Hero = ({ banners, loading, showVideo }: HeroProps) => {
 };
 
 const HomePage = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [offerProducts, setOfferProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [banners, setBanners] = useState<any[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
@@ -505,17 +505,17 @@ const HomePage = () => {
 
   useEffect(() => {
     setMounted(true);
-    const fetchFeatured = async () => {
+    const fetchOffers = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('id, name, price, discount, stock, images, category_id, featured, category:categories(name)')
-        .eq('featured', true)
+        .gt('discount', 0)
         .eq('is_hidden', false)
         .limit(24);
 
       if (!error) {
-        setFeaturedProducts(data || []);
+        setOfferProducts(data || []);
       }
       setLoading(false);
     };
@@ -554,7 +554,7 @@ const HomePage = () => {
       }
     };
 
-    fetchFeatured();
+    fetchOffers();
     fetchBanners();
     fetchSettings();
   }, []);
@@ -672,8 +672,8 @@ const HomePage = () => {
         </motion.div>
       </Container>
 
-      {/* Featured Carousel */}
-      {(!loading && featuredProducts.length === 0) ? null : (
+      {/* Offers Carousel */}
+      {(!loading && offerProducts.length === 0) ? null : (
         <Box sx={{ py: 2.5 }}>
           <Container maxWidth="xl">
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-end' }, mb: 1, gap: { xs: .5, md: 0 } }}>
@@ -687,10 +687,10 @@ const HomePage = () => {
                   textShadow: '0 0 20px rgba(255,0,0,0.15)',
                   fontSize: { xs: '1.125rem', sm: '1.5rem', md: '2.25rem' }
                 }}>
-                  Productos Destacados
+                  Ofertas
                 </Typography>
               </Box>
-              <Button component={Link} href="/shop?featured=true" endIcon={<ArrowRight size={20} />} sx={{ fontWeight: 700 }}>
+              <Button component={Link} href="/shop?discount=true" endIcon={<ArrowRight size={20} />} sx={{ fontWeight: 700 }}>
                 Ver Todos
               </Button>
             </Box>
@@ -712,7 +712,7 @@ const HomePage = () => {
                 }}
                 style={{ padding: '20px 5px 50px 5px' }}
               >
-                {featuredProducts.map((product) => (
+                {offerProducts.map((product) => (
                   <SwiperSlide key={product.id}>
                     <ProductCard product={product} small />
                   </SwiperSlide>
