@@ -41,6 +41,7 @@ import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User,
 import { useState, useEffect, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
+import { adjustStock } from '../../../lib/stock';
 import { useAlert } from '../../../context/AlertContext';
 
 // Placeholder número de WhatsApp de la tienda
@@ -198,17 +199,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
       }
 
       // Descontar stock inmediatamente (Reserva Inmediata)
-      for (const item of cartItems) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single();
-        if (product) {
-          const newStock = Math.max(0, product.stock - item.quantity);
-          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
-        }
-      }
+      await adjustStock(cartItems.map(item => ({ id: item.id, delta: item.quantity })));
 
       onCreated();
       handleReset();
@@ -876,34 +867,11 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
       // Si pasa de un estado activo a 'Cancelado'
       if (oldIsActive && newStatus === 'Cancelado') {
         const oldItems = order.items || [];
-        for (const item of oldItems) {
-          const { data: product } = await supabase
-            .from('products').select('stock').eq('id', item.id).single();
-          if (product) {
-            await supabase.from('products')
-              .update({ stock: (product.stock || 0) + item.quantity })
-              .eq('id', item.id);
-          }
-        }
+        await adjustStock(oldItems.map((item: any) => ({ id: item.id, delta: -item.quantity })));
       }
       // Si pasa de 'Cancelado' a un estado activo
       else if (oldStatus === 'Cancelado' && newIsActive) {
-        for (const item of cartItems) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
-
-          if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = Math.max(0, currentStock - item.quantity);
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
-              .eq('id', item.id);
-          }
-        }
+        await adjustStock(cartItems.map(item => ({ id: item.id, delta: item.quantity })));
       }
       // Si el pedido era activo y sigue siendo activo, ajustar diferencias
       else if (oldIsActive && newIsActive) {
@@ -911,28 +879,10 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
         const newItemsMap = new Map<string, number>(cartItems.map((i: any) => [i.id, i.quantity]));
         const allItemIds = Array.from(new Set<string>([...oldItemsMap.keys(), ...newItemsMap.keys()]));
 
-        for (const itemId of allItemIds) {
-          const oldQty = oldItemsMap.get(itemId) || 0;
-          const newQty = newItemsMap.get(itemId) || 0;
-          const diff = newQty - oldQty;
-
-          if (diff !== 0) {
-            const { data: product } = await supabase
-              .from('products')
-              .select('stock')
-              .eq('id', itemId)
-              .single();
-
-            if (product) {
-              const currentStock = product.stock || 0;
-              const newStock = Math.max(0, currentStock - diff);
-              await supabase
-                .from('products')
-                .update({ stock: newStock })
-                .eq('id', itemId);
-            }
-          }
-        }
+        await adjustStock(allItemIds.map(itemId => ({
+          id: itemId,
+          delta: (newItemsMap.get(itemId) || 0) - (oldItemsMap.get(itemId) || 0),
+        })));
       }
       onUpdated();
       onClose();
@@ -1412,35 +1362,12 @@ const OrdersManagement = () => {
       // Si pasa de un estado activo a 'Cancelado'
       if (oldIsActive && newStatus === 'Cancelado') {
         // Devolver stock
-        for (const item of items) {
-          const { data: product } = await supabase
-            .from('products').select('stock').eq('id', item.id).single();
-          if (product) {
-            await supabase.from('products')
-              .update({ stock: (product.stock || 0) + item.quantity })
-              .eq('id', item.id);
-          }
-        }
+        await adjustStock(items.map((item: any) => ({ id: item.id, delta: -item.quantity })));
       }
       // Si pasa de 'Cancelado' a un estado activo
       else if (oldStatus === 'Cancelado' && newIsActive) {
         // Reducir stock
-        for (const item of items) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
-
-          if (product) {
-            const currentStock = product.stock || 0;
-            const newStock = Math.max(0, currentStock - item.quantity);
-            await supabase
-              .from('products')
-              .update({ stock: newStock })
-              .eq('id', item.id);
-          }
-        }
+        await adjustStock(items.map((item: any) => ({ id: item.id, delta: item.quantity })));
       }
 
       // Actualizar el estado en la base de datos
@@ -1499,22 +1426,7 @@ const OrdersManagement = () => {
     const isActive = (status: string) => ACTIVE_ORDER_STATUSES.includes(status as typeof ACTIVE_ORDER_STATUSES[number]);
     if (isActive(orderToDelete.status)) {
       const items = orderToDelete.items || [];
-      for (const item of items) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single();
-
-        if (product) {
-          const currentStock = product.stock || 0;
-          const newStock = currentStock + item.quantity;
-          await supabase
-            .from('products')
-            .update({ stock: newStock })
-            .eq('id', item.id);
-        }
-      }
+      await adjustStock(items.map((item: any) => ({ id: item.id, delta: -item.quantity })));
     }
 
     await supabase.from('orders').delete().eq('id', orderToDelete.id);

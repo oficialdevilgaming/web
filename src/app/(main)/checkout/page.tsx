@@ -27,6 +27,7 @@ import NextLink from 'next/link';
 
 import { useCart } from '../../../context/CartContext';
 import { supabase } from '../../../lib/supabase';
+import { adjustStock } from '../../../lib/stock';
 
 const steps = ['Contacto y Envío', 'Confirmación'];
 
@@ -172,32 +173,15 @@ const CheckoutPage = () => {
       }
       const orderId = data.id;
 
-      // Descontar el stock de los productos comprados
-      for (const item of state.items) {
-        const { data: product, error } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single();
-
-        if (!product || error) continue;
-
-        const currentStock = product.stock || 0;
-        const newStock = Math.max(0, currentStock - (item.quantity || 0));
-
-        await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.id);
-      }
-
-      // 3. Descontar stock inmediatamente (Reserva Inmediata)
-      for (const item of state.items) {
-        const product = (productsStock ?? []).find((p: any) => p.id === item.id) as any;
-        if (product) {
-          const newStock = Math.max(0, product.stock - item.quantity);
-          await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
-        }
+      // 3. Descontar stock inmediatamente (Reserva Inmediata), de forma atómica.
+      // Usa una función RPC (SECURITY DEFINER) en vez de un UPDATE directo porque
+      // el checkout corre como usuario anónimo y RLS puede bloquear el UPDATE
+      // directo a `products` sin avisar (ver supabase-adjust-stock.sql).
+      const { error: stockError } = await adjustStock(
+        state.items.map((item: any) => ({ id: item.id, delta: Number(item.quantity) || 0 }))
+      );
+      if (stockError) {
+        console.error('No se pudo descontar el stock del pedido', orderId, stockError);
       }
 
       // 4. Armar mensaje de WhatsApp
