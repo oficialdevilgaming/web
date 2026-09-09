@@ -57,6 +57,24 @@ const getDaysAgo = (days: number) => {
   return d;
 };
 
+// Parsea un string "YYYY-MM-DD" como fecha LOCAL (evita el corrimiento de
+// un día que causa `new Date("YYYY-MM-DD")` en timezones UTC-3 como
+// Argentina/Uruguay, donde ese string se interpreta como medianoche UTC).
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+// Formatea una fecha a "YYYY-MM-DD" usando sus componentes locales
+// (equivalente local de toISOString().split('T')[0]).
+const toLocalDateStr = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const Dashboard = () => {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
@@ -88,9 +106,9 @@ const Dashboard = () => {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(() => toLocalDateStr(new Date()));
 
   const pickerSx = {
     '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.5, cursor: 'pointer' },
@@ -101,7 +119,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const historicalDate = new Date(startDate);
+        const historicalDate = parseLocalDate(startDate) || new Date();
         historicalDate.setDate(historicalDate.getDate() - 30);
 
         // Optimizamos: No traemos TODOS los productos, solo los necesarios para las métricas
@@ -117,19 +135,19 @@ const Dashboard = () => {
         setCategories(catRes.data || []);
         setLowStockCount(lowStockRes.count || 0);
 
-        // Traer solo productos que aparecen en las órdenes para el Top 5
-        const productNamesInOrders = new Set<string>();
+        // Traer solo productos que aparecen en las órdenes para el Top 5 y la Ganancia Neta
+        const productIdsInOrders = new Set<string>();
         ordersData.forEach(o => {
           if (o.items) {
-            o.items.forEach((item: any) => productNamesInOrders.add(item.name));
+            o.items.forEach((item: any) => productIdsInOrders.add(item.id));
           }
         });
 
-        if (productNamesInOrders.size > 0) {
+        if (productIdsInOrders.size > 0) {
           const { data: neededProducts } = await supabase
             .from('products')
             .select('id, name, category_id, stock, cost_price')
-            .in('name', Array.from(productNamesInOrders));
+            .in('id', Array.from(productIdsInOrders));
           setProducts(neededProducts || []);
         } else {
           setProducts([]);
@@ -145,9 +163,9 @@ const Dashboard = () => {
   }, [startDate]); // Recarga si la fecha de inicio cambia significativamente
 
   const metrics = useMemo(() => {
-    const start = new Date(startDate);
+    const start = parseLocalDate(startDate) || new Date();
     start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
+    const end = parseLocalDate(endDate) || new Date();
     end.setHours(23, 59, 59, 999);
 
     // Filtrar órdenes por rango
@@ -164,14 +182,17 @@ const Dashboard = () => {
     const revenueInRange = completedOrdersInRange.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
     const totalOrdersInRange = rangeOrders.length;
 
-    // Ganancia Neta: (precio_venta - cost_price) * cantidad por cada item entregado
+    // Ganancia Neta: (precio_venta efectivo - cost_price) * cantidad por cada item entregado.
+    // Se busca el producto por id (no por nombre, que puede repetirse o cambiar) y se
+    // descuenta el % de descuento del item, igual que en la columna "Ganancia" de Pedidos.
     let netProfitInRange = 0;
     completedOrdersInRange.forEach(o => {
       if (o.items && Array.isArray(o.items)) {
         o.items.forEach((item: any) => {
-          const product = products.find(p => p.name === item.name);
+          const product = products.find(p => p.id === item.id);
           const costPrice = product?.cost_price ?? 0;
-          netProfitInRange += (Number(item.price) - costPrice) * (item.quantity || 1);
+          const effPrice = Number(item.price) * (1 - (item.discount || 0) / 100);
+          netProfitInRange += (effPrice - costPrice) * (item.quantity || 1);
         });
       }
     });
@@ -205,7 +226,7 @@ const Dashboard = () => {
       if (o.items && Array.isArray(o.items)) {
         o.items.forEach((item: any) => {
           if (!productStats[item.name]) {
-            const product = products.find(p => p.name === item.name);
+            const product = products.find(p => p.id === item.id);
             const category = categories.find(c => c.id === product?.category_id)?.name || 'Sin categoría';
             productStats[item.name] = { quantity: 0, category };
           }
@@ -271,15 +292,15 @@ const Dashboard = () => {
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={esLocale} localeText={esES.components.MuiLocalizationProvider.defaultProps.localeText}>
             <DatePicker
               label="Desde"
-              value={startDate ? new Date(startDate) : null}
-              onChange={(newValue) => setStartDate(newValue ? newValue.toISOString().split('T')[0] : '')}
+              value={startDate ? parseLocalDate(startDate) : null}
+              onChange={(newValue) => setStartDate(newValue ? toLocalDateStr(newValue) : '')}
               format="dd/MM/yyyy"
               slotProps={{ textField: { size: 'small', sx: pickerSx } }}
             />
             <DatePicker
               label="Hasta"
-              value={endDate ? new Date(endDate) : null}
-              onChange={(newValue) => setEndDate(newValue ? newValue.toISOString().split('T')[0] : '')}
+              value={endDate ? parseLocalDate(endDate) : null}
+              onChange={(newValue) => setEndDate(newValue ? toLocalDateStr(newValue) : '')}
               format="dd/MM/yyyy"
               slotProps={{ textField: { size: 'small', sx: pickerSx } }}
             />

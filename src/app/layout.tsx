@@ -5,19 +5,33 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.devilgaming.com.ar'),
-  title: "Devil Gaming | Elite Hardware & Gaming Setup",
-  description: "Dominá tu mundo con el estándar de élite en hardware. PCs armadas, componentes premium y periféricos de alto rendimiento.",
+  title: "Devil Gaming | PC Gamer, Hardware & Consolas",
+  description: "",
   icons: {
     icon: '/icon.png',
     apple: '/icon.png',
   },
   openGraph: {
-    title: "Devil Gaming | Elite Hardware & Gaming Setup",
-    description: "Dominá tu mundo con el estándar de élite en hardware. PCs armadas, componentes premium y periféricos de alto rendimiento.",
+    title: "Devil Gaming | PC Gamer, Hardware & Consolas",
+    description: "",
     url: 'https://www.devilgaming.com.ar',
     siteName: 'Devil Gaming',
     locale: 'es_AR',
     type: 'website',
+    images: [
+      {
+        url: '/main_image.jpeg',
+        width: 819,
+        height: 614,
+        alt: 'Devil Gaming | Elite Hardware & Gaming Setup',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Devil Gaming | PC Gamer, Hardware & Consolas",
+    description: "",
+    images: ['/main_image.jpeg'],
   },
   robots: {
     index: true,

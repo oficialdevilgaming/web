@@ -1251,6 +1251,18 @@ const OrdersManagement = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
+  // Ganancia: mapa id de producto -> costo base, para calcular la ganancia por pedido
+  const [productCostMap, setProductCostMap] = useState<Map<string, number>>(new Map());
+
+  const calcOrderProfit = (order: any) => {
+    const items = order.items || [];
+    return items.reduce((sum: number, item: any) => {
+      const costPrice = productCostMap.get(item.id) ?? 0;
+      const effPrice = item.price * (1 - (item.discount || 0) / 100);
+      return sum + (effPrice - costPrice) * (item.quantity || 1);
+    }, 0);
+  };
+
   const toggleRow = (id: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
@@ -1306,6 +1318,27 @@ const OrdersManagement = () => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchTerm, statusFilter, dateOrder, idOrder, activeSort]);
+
+  // Traer el costo base de los productos de los pedidos visibles (incluyendo el pedido
+  // abierto en el modal, que a veces llega por deep-link y no está en la página actual),
+  // para calcular la Ganancia.
+  useEffect(() => {
+    const allOrders = selectedOrder ? [...orders, selectedOrder] : orders;
+    const itemIds = Array.from(new Set(
+      allOrders.flatMap(o => (o.items || []).map((i: any) => i.id))
+    ));
+    if (itemIds.length === 0) {
+      setProductCostMap(new Map());
+      return;
+    }
+    supabase
+      .from('products')
+      .select('id, cost_price')
+      .in('id', itemIds)
+      .then(({ data }) => {
+        setProductCostMap(new Map((data || []).map(p => [p.id, Number(p.cost_price) || 0])));
+      });
+  }, [orders, selectedOrder]);
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -1542,15 +1575,16 @@ const OrdersManagement = () => {
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Total</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Envío</TableCell>
                 <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Estado</TableCell>
+                <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>Ganancia</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} align="center">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} align="center">Cargando...</TableCell></TableRow>
               ) : orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
                       No hay pedidos.
                     </Typography>
@@ -1649,6 +1683,11 @@ const OrdersManagement = () => {
                         ))}
                       </Select>
                     </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: 'success.main' }}>
+                        +${calcOrderProfit(order).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                      </Typography>
+                    </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
 
@@ -1689,6 +1728,12 @@ const OrdersManagement = () => {
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Total</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                 ${Number(order.total).toLocaleString('es-ES')}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Ganancia</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 800, color: 'success.main' }}>
+                                +${calcOrderProfit(order).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
                               </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -2058,6 +2103,12 @@ const OrdersManagement = () => {
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Total</Typography>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>
                 ${Number(selectedOrder?.total).toLocaleString('es-ES')}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Ganancia</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'success.main' }}>
+                +${selectedOrder ? calcOrderProfit(selectedOrder).toLocaleString('es-ES', { maximumFractionDigits: 0 }) : 0}
               </Typography>
             </Box>
           </Stack>
