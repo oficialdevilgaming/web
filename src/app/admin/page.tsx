@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -8,6 +8,7 @@ import {
   Typography,
   Stack,
   CircularProgress,
+  LinearProgress,
   ToggleButton,
   ToggleButtonGroup,
   Button,
@@ -41,6 +42,7 @@ import {
   CartesianGrid
 } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { formatMoney } from '../../lib/money';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GraphicEq } from '@mui/icons-material';
@@ -75,12 +77,39 @@ const toLocalDateStr = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Ítem tal como quedó guardado en orders.items al momento de la venta.
+type SoldItem = { price: number; discount?: number | null; quantity?: number; cost_price?: number | null };
+
+// Ingreso de un ítem con el precio y el % de descuento congelados en el pedido al
+// momento de la venta (nunca el precio actual del producto).
+const itemRevenue = (item: SoldItem) =>
+  Number(item.price) * (1 - (Number(item.discount) || 0) / 100) * (Number(item.quantity) || 1);
+
+const orderRevenue = (order: { items?: SoldItem[] | null }) =>
+  (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => sum + itemRevenue(item), 0);
+
+// Tamaño de los montos de las tarjetas, que nunca se parten (white-space: nowrap). La tarjeta
+// es un container (container-type: inline-size) y 1cqi es el 1% del ancho de su contenido:
+// "$99.999.999" mide ~6,8em en Inter 800, así que a 13cqi ocupa ~88% del ancho y entra sin
+// desbordar.
+const cardAmountFontSize = 'clamp(0.75rem, 13cqi, 1.6rem)';
+
+// Mientras se tipea una fecha, el campo pasa por valores incompletos: fechas inválidas o años
+// como 0002 o 0202. Se ignoran para no recalcular ni consultar con un rango absurdo (desde el
+// año 2, el gráfico generaría cientos de miles de días).
+const isCompleteDate = (date: Date) =>
+  !Number.isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2100;
+
 const Dashboard = () => {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // Después de la primera carga, las recargas no reemplazan el Lobby por el spinner: así los
+  // selectores de fecha no se desmontan mientras se escribe en ellos.
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const isFirstFetch = useRef(true);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [metricType, setMetricType] = useState<'revenue' | 'units'>('revenue');
   const formatDisplay = (date: string) => {
@@ -110,35 +139,52 @@ const Dashboard = () => {
   });
   const [endDate, setEndDate] = useState(() => toLocalDateStr(new Date()));
 
+  // Valores estables para los selectores: si cambiaran en cada render, MUI reiniciaría el
+  // campo y borraría una fecha a medio escribir.
+  const startValue = useMemo(() => (startDate ? parseLocalDate(startDate) : null), [startDate]);
+  const endValue = useMemo(() => (endDate ? parseLocalDate(endDate) : null), [endDate]);
+
   const pickerSx = {
     '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.5, cursor: 'pointer' },
     width: { xs: '100%', sm: 180 }
   };
 
   useEffect(() => {
+    // Al cambiar "Desde", la recarga espera a que se termine de escribir la fecha (si no, se
+    // consultaría una vez por cada sección tipeada) y la respuesta de una fecha anterior que
+    // llegue tarde se descarta en vez de pisar la nueva.
+    let cancelled = false;
+
     const fetchData = async () => {
+      isFirstFetch.current = false;
       setLoading(true);
       try {
-        const historicalDate = parseLocalDate(startDate) || new Date();
-        historicalDate.setDate(historicalDate.getDate() - 30);
+        // Pedidos desde el inicio del rango: creados (Pedidos, Pendientes, Últimos Pedidos) o
+        // entregados (Facturación, Ganancia Neta, gráfico y Top 5) aunque se hayan creado antes.
+        // Ningún indicador usa pedidos anteriores, así que no se traen días de más.
+        const rangeStart = parseLocalDate(startDate) || new Date();
+        rangeStart.setHours(0, 0, 0, 0);
+        const since = rangeStart.toISOString();
 
         // Optimizamos: No traemos TODOS los productos, solo los necesarios para las métricas
         // y un count aparte para el stock bajo.
         const [ordRes, catRes, lowStockRes] = await Promise.all([
-          supabase.from('orders').select('id, created_at, status, total, items, customer_name, delivered_at').gte('created_at', historicalDate.toISOString()).order('created_at', { ascending: true }),
+          supabase.from('orders').select('id, created_at, status, total, items, customer_name, delivered_at').or(`created_at.gte.${since},delivered_at.gte.${since}`).order('created_at', { ascending: true }),
           supabase.from('categories').select('id, name'),
           supabase.from('products').select('*', { count: 'exact', head: true }).lt('stock', 5)
         ]);
+        if (cancelled) return;
 
         const ordersData = ordRes.data || [];
         setOrders(ordersData);
         setCategories(catRes.data || []);
         setLowStockCount(lowStockRes.count || 0);
 
-        // Traer solo productos que aparecen en las órdenes para el Top 5 y la Ganancia Neta
+        // Solo la categoría de los productos vendidos (pedidos Entregados), para el Top 5.
+        // La Ganancia Neta no consulta productos: usa el costo congelado en cada ítem.
         const productIdsInOrders = new Set<string>();
         ordersData.forEach(o => {
-          if (o.items) {
+          if (o.status === 'Entregado' && o.items) {
             o.items.forEach((item: any) => productIdsInOrders.add(item.id));
           }
         });
@@ -146,8 +192,9 @@ const Dashboard = () => {
         if (productIdsInOrders.size > 0) {
           const { data: neededProducts } = await supabase
             .from('products')
-            .select('id, name, category_id, stock, cost_price')
+            .select('id, category_id')
             .in('id', Array.from(productIdsInOrders));
+          if (cancelled) return;
           setProducts(neededProducts || []);
         } else {
           setProducts([]);
@@ -156,10 +203,18 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setHasLoaded(true);
+        }
       }
     };
-    fetchData();
+
+    const timer = setTimeout(fetchData, isFirstFetch.current ? 0 : 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [startDate]); // Recarga si la fecha de inicio cambia significativamente
 
   const metrics = useMemo(() => {
@@ -179,20 +234,23 @@ const Dashboard = () => {
       const d = new Date(o.delivered_at || o.created_at);
       return d >= start && d <= end;
     });
-    const revenueInRange = completedOrdersInRange.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    // Facturación y Ganancia Neta salen SOLO de los ítems del pedido (precio, descuento y
+    // costo congelados al momento de la venta), nunca de la tabla `products`: crear, editar
+    // o eliminar productos, o cambiar sus precios/costos, no altera ventas ya hechas.
+    // Facturación = Σ precio efectivo × cantidad (sin envío, que sí está incluido en `total`).
+    const revenueInRange = completedOrdersInRange.reduce((sum, o) => sum + orderRevenue(o), 0);
     const totalOrdersInRange = rangeOrders.length;
 
-    // Ganancia Neta: (precio_venta efectivo - cost_price) * cantidad por cada item entregado.
-    // Se busca el producto por id (no por nombre, que puede repetirse o cambiar) y se
-    // descuenta el % de descuento del item, igual que en la columna "Ganancia" de Pedidos.
+    // Ganancia Neta: (precio efectivo - cost_price congelado en el ítem) * cantidad, igual
+    // que en la columna "Ganancia" de Pedidos. Un ítem sin costo congelado (producto
+    // borrado antes de existir el snapshot) no suma: tomarlo como 0 inflaría la ganancia.
     let netProfitInRange = 0;
     completedOrdersInRange.forEach(o => {
       if (o.items && Array.isArray(o.items)) {
         o.items.forEach((item: any) => {
-          const product = products.find(p => p.id === item.id);
-          const costPrice = product?.cost_price ?? 0;
-          const effPrice = Number(item.price) * (1 - (item.discount || 0) / 100);
-          netProfitInRange += (effPrice - costPrice) * (item.quantity || 1);
+          const costPrice = item.cost_price == null ? NaN : Number(item.cost_price);
+          if (!Number.isFinite(costPrice)) return;
+          netProfitInRange += itemRevenue(item) - costPrice * (Number(item.quantity) || 1);
         });
       }
     });
@@ -210,7 +268,7 @@ const Dashboard = () => {
       const dateStr = new Date(o.delivered_at || o.created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
       if (chartDataMap.has(dateStr)) {
         if (metricType === 'revenue') {
-          chartDataMap.set(dateStr, chartDataMap.get(dateStr) + (parseFloat(o.total) || 0));
+          chartDataMap.set(dateStr, chartDataMap.get(dateStr) + orderRevenue(o));
         } else {
           const itemsCount = o.items ? o.items.reduce((acc: number, item: any) => acc + item.quantity, 0) : 0;
           chartDataMap.set(dateStr, chartDataMap.get(dateStr) + itemsCount);
@@ -261,7 +319,7 @@ const Dashboard = () => {
     };
   }, [orders, products, metricType, startDate, endDate]);
 
-  if (loading) {
+  if (!hasLoaded) {
     return (
       <Box sx={{ p: 10, textAlign: 'center' }}>
         <CircularProgress color="primary" />
@@ -283,7 +341,8 @@ const Dashboard = () => {
           flexDirection: { xs: 'column', sm: 'row' },
           alignItems: { xs: 'stretch', sm: 'center' },
           gap: { xs: 1.5, sm: 2 },
-          width: { xs: '100%', sm: 'auto' }
+          width: { xs: '100%', sm: 'auto' },
+          position: 'relative'
         }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1 }}>
             <Calendar size={18} color="#666" />
@@ -292,19 +351,28 @@ const Dashboard = () => {
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={esLocale} localeText={esES.components.MuiLocalizationProvider.defaultProps.localeText}>
             <DatePicker
               label="Desde"
-              value={startDate ? parseLocalDate(startDate) : null}
-              onChange={(newValue) => setStartDate(newValue ? toLocalDateStr(newValue) : '')}
+              value={startValue}
+              onChange={(newValue) => {
+                if (newValue && !isCompleteDate(newValue)) return;
+                setStartDate(newValue ? toLocalDateStr(newValue) : '');
+              }}
               format="dd/MM/yyyy"
               slotProps={{ textField: { size: 'small', sx: pickerSx } }}
             />
             <DatePicker
               label="Hasta"
-              value={endDate ? parseLocalDate(endDate) : null}
-              onChange={(newValue) => setEndDate(newValue ? toLocalDateStr(newValue) : '')}
+              value={endValue}
+              onChange={(newValue) => {
+                if (newValue && !isCompleteDate(newValue)) return;
+                setEndDate(newValue ? toLocalDateStr(newValue) : '');
+              }}
               format="dd/MM/yyyy"
               slotProps={{ textField: { size: 'small', sx: pickerSx } }}
             />
           </LocalizationProvider>
+          {loading && (
+            <LinearProgress sx={{ position: 'absolute', left: 12, right: 12, bottom: 0, height: 2, borderRadius: 1 }} />
+          )}
         </Paper>
       </Stack>
 
@@ -340,7 +408,7 @@ const Dashboard = () => {
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>Facturación</Typography>
                 </Stack>
-                <Typography sx={{ fontWeight: 800, fontSize: '1.4rem' }}>${metrics.revenueInRange.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: '1.4rem', whiteSpace: 'nowrap' }}>{formatMoney(metrics.revenueInRange)}</Typography>
               </Box>
               {/* Ganancia Neta */}
               <Box sx={{ px: 3, py: 2 }}>
@@ -348,8 +416,8 @@ const Dashboard = () => {
                   <Box sx={{ p: 0.75, borderRadius: 2, bgcolor: '#00bfa508', color: '#00bfa5', display: 'flex' }}><Banknote size={16} /></Box>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>Ganancia Neta</Typography>
                 </Stack>
-                <Typography sx={{ fontWeight: 800, fontSize: '1.4rem', color: metrics.netProfitInRange >= 0 ? '#00796b' : '#f44336' }}>
-                  ${metrics.netProfitInRange.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                <Typography sx={{ fontWeight: 800, fontSize: '1.4rem', whiteSpace: 'nowrap', color: metrics.netProfitInRange >= 0 ? '#00796b' : '#f44336' }}>
+                  {formatMoney(metrics.netProfitInRange)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">Utilidad real del periodo</Typography>
               </Box>
@@ -406,14 +474,15 @@ const Dashboard = () => {
               border: '1px solid rgba(0,0,0,0.08)',
               height: '100%',
               width: '100%',
-              position: 'relative'
+              position: 'relative',
+              containerType: 'inline-size'
             }}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
               <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#4caf5008', color: '#4caf50', display: 'flex' }}><DollarSign size={18} /></Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Facturación</Typography>
             </Stack>
-            <Typography sx={{ fontWeight: 800, mb: 0.5, fontSize: 'clamp(1rem, 2vw, 1.6rem)', lineHeight: 1.2, wordBreak: 'break-word' }}>
-              ${metrics.revenueInRange.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+            <Typography sx={{ fontWeight: 800, mb: 0.5, fontSize: cardAmountFontSize, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+              {formatMoney(metrics.revenueInRange)}
             </Typography>
           </Paper>
         </Grid>
@@ -429,6 +498,7 @@ const Dashboard = () => {
               height: '100%',
               width: '100%',
               position: 'relative',
+              containerType: 'inline-size',
               background: metrics.netProfitInRange > 0
                 ? 'linear-gradient(135deg, #fff 60%, rgba(0,191,165,0.04) 100%)'
                 : 'white',
@@ -438,8 +508,8 @@ const Dashboard = () => {
               <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#00bfa508', color: '#00bfa5', display: 'flex' }}><Banknote size={18} /></Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}>Ganancia Neta</Typography>
             </Stack>
-            <Typography sx={{ fontWeight: 800, mb: 0.5, fontSize: 'clamp(1rem, 2vw, 1.6rem)', lineHeight: 1.2, wordBreak: 'break-word', color: metrics.netProfitInRange >= 0 ? '#00796b' : '#f44336' }}>
-              ${metrics.netProfitInRange.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+            <Typography sx={{ fontWeight: 800, mb: 0.5, fontSize: cardAmountFontSize, lineHeight: 1.2, whiteSpace: 'nowrap', color: metrics.netProfitInRange >= 0 ? '#00796b' : '#f44336' }}>
+              {formatMoney(metrics.netProfitInRange)}
             </Typography>
           </Paper>
         </Grid>
@@ -585,7 +655,7 @@ const Dashboard = () => {
                         >
                           <td style={{ padding: '16px 24px', fontSize: '0.8rem', color: '#666' }}>{formatDisplay(order.created_at)}</td>
                           <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 600 }}>{order.customer_name}</td>
-                          <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700 }}>${order.total}</td>
+                          <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700 }}>{formatMoney(order.total)}</td>
                         </tr>
                       );
                     })}
@@ -713,13 +783,13 @@ const Dashboard = () => {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#888', fontSize: 12 }}
-                    tickFormatter={(val) => metricType === 'revenue' ? `$${val}` : `${val}`}
-                    width={35}
+                    tickFormatter={(val) => metricType === 'revenue' ? formatMoney(val) : `${val}`}
+                    width={45}
                   />
                   <RechartsTooltip
                     formatter={(value: any) => [
                       metricType === 'revenue'
-                        ? `$${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
+                        ? formatMoney(value)
                         : `${value} unidades`,
                       metricType === 'revenue' ? 'Facturación' : 'Unidades'
                     ]}

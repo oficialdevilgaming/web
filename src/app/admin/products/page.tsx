@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, Fragment } from 'react';
+import { useState, useEffect, useRef, Suspense, Fragment } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -34,6 +34,8 @@ import {
 import { Plus, Search, Edit2, Trash2, Star, X, CheckCircle, ChevronDown, ChevronRight, Eye, EyeOff, Warehouse, Home } from 'lucide-react';
 import { Collapse } from '@mui/material';
 import { supabase } from '../../../lib/supabase';
+import { ilikeOrValue } from '../../../lib/search';
+import { formatMoney } from '../../../lib/money';
 import { useAlert } from '../../../context/AlertContext';
 import { FormControlLabel, Switch } from '@mui/material';
 import { compressAndConvertToWebP } from '../../../lib/imageUtils';
@@ -64,6 +66,7 @@ type Category = {
 
 const ProductsManagement = () => {
   const { showAlert } = useAlert();
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -119,7 +122,12 @@ const ProductsManagement = () => {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
+  // Solo la consulta más reciente actualiza la tabla: si una respuesta vieja llega tarde
+  // (por ejemplo, de lo que se buscaba antes), se descarta en vez de pisar la nueva.
+  const latestProductsRequest = useRef(0);
+
   const fetchData = async () => {
+    const requestId = ++latestProductsRequest.current;
     setLoading(true);
     try {
       // Build query for products
@@ -129,7 +137,8 @@ const ProductsManagement = () => {
 
       // Apply Filters
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        const value = ilikeOrValue(searchTerm);
+        query = query.or(`name.ilike.${value},description.ilike.${value}`);
       }
 
       if (selectedCategory !== 'all') {
@@ -159,6 +168,7 @@ const ProductsManagement = () => {
         .order('created_at', { ascending: false })
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1);
 
+      if (requestId !== latestProductsRequest.current) return;
       if (pError) throw pError;
 
       setAllProducts(productsData || []);
@@ -166,7 +176,7 @@ const ProductsManagement = () => {
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
+      if (requestId === latestProductsRequest.current) setLoading(false);
     }
   };
 
@@ -196,6 +206,12 @@ const ProductsManagement = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchTerm, selectedCategory, filterStock, filterFeatured]);
+
+  // La búsqueda consulta la base cuando se deja de escribir, no en cada tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const handleOpen = (product: Product | null = null) => {
     setSelectedProduct(product);
@@ -466,9 +482,9 @@ const ProductsManagement = () => {
               fullWidth
               placeholder="Buscar por nombre o marca..."
               variant="outlined"
-              value={searchTerm}
+              value={searchInput}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSearchTerm(e.target.value);
+                setSearchInput(e.target.value);
                 setPage(0);
               }}
               size="small"
@@ -478,9 +494,9 @@ const ProductsManagement = () => {
                     <Search size={18} />
                   </InputAdornment>
                 ),
-                endAdornment: searchTerm ? (
+                endAdornment: searchInput ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => { setSearchTerm(''); setPage(0); }}>
+                    <IconButton size="small" onClick={() => { setSearchInput(''); setSearchTerm(''); setPage(0); }}>
                       <X size={16} />
                     </IconButton>
                   </InputAdornment>
@@ -628,7 +644,7 @@ const ProductsManagement = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>${product.price.toLocaleString('es-ES')}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>{formatMoney(product.price)}</TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
@@ -700,15 +716,15 @@ const ProductsManagement = () => {
                               {product.discount && product.discount > 0 ? (
                                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                                   <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>
-                                    ${(product.price * (1 - product.discount / 100)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                                    {formatMoney(product.price * (1 - product.discount / 100))}
                                   </Typography>
                                   <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.primary', fontSize: '0.75rem' }}>
-                                    ${product.price.toLocaleString('es-ES')}
+                                    {formatMoney(product.price)}
                                   </Typography>
                                 </Box>
                               ) : (
                                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                  ${product.price.toLocaleString('es-ES')}
+                                  {formatMoney(product.price)}
                                 </Typography>
                               )}
                             </Stack>
@@ -1231,15 +1247,15 @@ const ProductsManagement = () => {
                           {productForDetail.discount && productForDetail.discount > 0 ? (
                             <Box sx={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: 1, rowGap: 0.25 }}>
                               <Typography variant="h5" sx={{ fontWeight: 800, color: 'error.main', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
-                                ${(productForDetail.price * (1 - productForDetail.discount / 100)).toLocaleString('es-ES')}
+                                {formatMoney(productForDetail.price * (1 - productForDetail.discount / 100))}
                               </Typography>
                               <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', whiteSpace: 'nowrap', fontSize: { xs: '0.82rem', sm: '0.9rem' } }}>
-                                ${productForDetail.price.toLocaleString('es-ES')}
+                                {formatMoney(productForDetail.price)}
                               </Typography>
                             </Box>
                           ) : (
                             <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
-                              ${productForDetail.price.toLocaleString('es-ES')}
+                              {formatMoney(productForDetail.price)}
                             </Typography>
                           )}
                         </Stack>
@@ -1266,7 +1282,7 @@ const ProductsManagement = () => {
                             Costo Base:
                           </Typography>
                           <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', fontSize: { xs: '1.15rem', sm: '1.5rem' }, lineHeight: 1.15 }}>
-                            ${productForDetail.cost_price != null ? productForDetail.cost_price.toLocaleString('es-ES') : '0'}
+                            {formatMoney(productForDetail.cost_price)}
                           </Typography>
                         </Stack>
                       </Grid>
@@ -1287,7 +1303,7 @@ const ProductsManagement = () => {
                               return (
                                 <Box>
                                   <Typography variant="h6" sx={{ fontWeight: 800, color: isNegative ? 'error.main' : 'success.main', fontSize: { xs: '1.08rem', sm: '1.25rem' }, lineHeight: 1.15 }}>
-                                    {isNegative ? '-' : '+'}${Math.abs(profitAmt).toLocaleString('es-ES')}
+                                    {isNegative ? '-' : '+'}{formatMoney(Math.abs(profitAmt))}
                                   </Typography>
                                 </Box>
                               );

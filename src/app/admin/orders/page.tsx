@@ -38,10 +38,12 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { Eye, Clock, CheckCircle, Truck, AlertCircle, ShoppingBag, Search, User, Phone, Trash2, Plus, X, MessageCircle, Edit2, MapPin, DollarSign, ChevronDown, ChevronRight, Mail, Store, IdCard, StickyNote } from 'lucide-react';
-import { useState, useEffect, Suspense, Fragment } from 'react';
+import { useState, useEffect, useRef, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { adjustStock } from '../../../lib/stock';
+import { ilikeOrValue } from '../../../lib/search';
+import { formatMoney } from '../../../lib/money';
 import { useAlert } from '../../../context/AlertContext';
 
 // Placeholder número de WhatsApp de la tienda
@@ -327,7 +329,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                   <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', p: 1.5, mb: 1, borderRadius: 2, border: '1px solid rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.08)' }, transition: 'all 0.2s', gap: 2 }}>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>{p.name}</Typography>
-                      <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${p.price.toLocaleString('es-ES')}</Typography>
+                      <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(p.price)}</Typography>
                     </Box>
                     <Button
                       size="small"
@@ -386,11 +388,11 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                               <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{item.name}</Typography>
                               {item.discount && item.discount > 0 ? (
                                 <>
-                                  <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
-                                  <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', ml: 0.5 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                                  <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(effPrice * item.quantity)}</Typography>
+                                  <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', ml: 0.5 }}>{formatMoney(item.price * item.quantity)}</Typography>
                                 </>
                               ) : (
-                                <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                                <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(item.price * item.quantity)}</Typography>
                               )}
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
@@ -415,7 +417,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                 <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.08)', bgcolor: 'white', borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Total:</Typography>
-                    <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>${total.toLocaleString('es-ES')}</Typography>
+                    <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(total)}</Typography>
                   </Box>
                 </Box>
               </Box>
@@ -641,7 +643,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
                   return (
                     <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2">{item.quantity}x {item.name}{item.discount && item.discount > 0 ? ` (-${item.discount}%)` : ''}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>${(effPrice * item.quantity).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatMoney(effPrice * item.quantity)}</Typography>
                     </Box>
                   );
                 })}
@@ -651,7 +653,7 @@ const CreateOrderWizard = ({ open, onClose, onCreated }: CreateOrderWizardProps)
             <Divider />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Total del Pedido</Typography>
-              <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>${total.toLocaleString('es-ES')}</Typography>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(total)}</Typography>
             </Box>
           </Stack>
         )}
@@ -1121,7 +1123,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                     <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', p: 1.5, mb: 1, borderRadius: 2, border: '1px solid rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }, gap: 2 }}>
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>{p.name}</Typography>
-                        <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${p.price.toLocaleString('es-ES')}</Typography>
+                        <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(p.price)}</Typography>
                       </Box>
                       <Button
                         size="small"
@@ -1167,7 +1169,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                           <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: 'white', border: '1px solid rgba(0,0,0,0.04)' }}>
                             <Box sx={{ flexGrow: 1 }}>
                               <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>{item.name}</Typography>
-                              <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>${(item.price * item.quantity).toLocaleString('es-ES')}</Typography>
+                              <Typography variant="caption" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(item.price * item.quantity)}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 2, p: 0.5 }}>
                               <IconButton size="small" onClick={() => handleQtyChange(item.id, item.quantity - 1)} sx={{ p: 0.5 }} disabled={item.quantity <= 1}>
@@ -1189,7 +1191,7 @@ const EditOrderWizard = ({ open, order, onClose, onUpdated }: EditOrderWizardPro
                   <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.08)', bgcolor: 'white' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Total Pedido:</Typography>
-                      <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>${total.toLocaleString('es-ES')}</Typography>
+                      <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>{formatMoney(total)}</Typography>
                     </Box>
                   </Box>
                 </Box>
@@ -1229,6 +1231,7 @@ const OrdersManagement = () => {
   const [totalCount, setTotalCount] = useState(0);
 
   // Filtros y Paginación
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(0);
@@ -1251,13 +1254,14 @@ const OrdersManagement = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Ganancia: mapa id de producto -> costo base, para calcular la ganancia por pedido
-  const [productCostMap, setProductCostMap] = useState<Map<string, number>>(new Map());
-
+  // Ganancia del pedido con el costo congelado en cada ítem al momento de la venta
+  // (items[].cost_price, ver supabase-order-item-cost-snapshot.sql), no el costo actual
+  // del producto. Un ítem sin costo no suma: tomarlo como 0 inflaría la ganancia.
   const calcOrderProfit = (order: any) => {
     const items = order.items || [];
     return items.reduce((sum: number, item: any) => {
-      const costPrice = productCostMap.get(item.id) ?? 0;
+      const costPrice = item.cost_price == null ? NaN : Number(item.cost_price);
+      if (!Number.isFinite(costPrice)) return sum;
       const effPrice = item.price * (1 - (item.discount || 0) / 100);
       return sum + (effPrice - costPrice) * (item.quantity || 1);
     }, 0);
@@ -1276,7 +1280,12 @@ const OrdersManagement = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Solo la consulta más reciente actualiza la tabla: si una respuesta vieja llega tarde
+  // (por ejemplo, de lo que se buscaba antes), se descarta.
+  const latestOrdersRequest = useRef(0);
+
   const fetchOrders = async () => {
+    const requestId = ++latestOrdersRequest.current;
     setLoading(true);
     try {
       let query = supabase
@@ -1285,8 +1294,12 @@ const OrdersManagement = () => {
 
       // Apply filters
       if (searchTerm) {
-        // En orders no hay un campo name directo pero podemos buscar en customer_name
-        query = query.or(`customer_name.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+        // `id` es numérico y no admite ilike (la consulta fallaba con cualquier texto): se busca
+        // por cliente y, si lo escrito es un número (con o sin #), también por ID exacto.
+        const filters = [`customer_name.ilike.${ilikeOrValue(searchTerm)}`];
+        const idTerm = searchTerm.replace(/^#/, '');
+        if (/^\d{1,15}$/.test(idTerm)) filters.push(`id.eq.${idTerm}`);
+        query = query.or(filters.join(','));
       }
 
       if (statusFilter !== 'all') {
@@ -1304,13 +1317,14 @@ const OrdersManagement = () => {
       const { data, count, error } = await query
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1);
 
+      if (requestId !== latestOrdersRequest.current) return;
       if (error) throw error;
       setOrders(data || []);
       setTotalCount(count || 0);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
-      setLoading(false);
+      if (requestId === latestOrdersRequest.current) setLoading(false);
     }
   };
 
@@ -1319,26 +1333,11 @@ const OrdersManagement = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchTerm, statusFilter, dateOrder, idOrder, activeSort]);
 
-  // Traer el costo base de los productos de los pedidos visibles (incluyendo el pedido
-  // abierto en el modal, que a veces llega por deep-link y no está en la página actual),
-  // para calcular la Ganancia.
+  // La búsqueda consulta la base cuando se deja de escribir, no en cada tecla.
   useEffect(() => {
-    const allOrders = selectedOrder ? [...orders, selectedOrder] : orders;
-    const itemIds = Array.from(new Set(
-      allOrders.flatMap(o => (o.items || []).map((i: any) => i.id))
-    ));
-    if (itemIds.length === 0) {
-      setProductCostMap(new Map());
-      return;
-    }
-    supabase
-      .from('products')
-      .select('id, cost_price')
-      .in('id', itemIds)
-      .then(({ data }) => {
-        setProductCostMap(new Map((data || []).map(p => [p.id, Number(p.cost_price) || 0])));
-      });
-  }, [orders, selectedOrder]);
+    const timer = setTimeout(() => setSearchTerm(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -1502,9 +1501,9 @@ const OrdersManagement = () => {
                 fullWidth
                 size="small"
                 placeholder="Buscar por cliente o ID..."
-                value={searchTerm}
+                value={searchInput}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setSearchTerm(e.target.value);
+                  setSearchInput(e.target.value);
                   setPage(0);
                 }}
                 InputProps={{
@@ -1513,9 +1512,9 @@ const OrdersManagement = () => {
                       <Search size={18} />
                     </InputAdornment>
                   ),
-                  endAdornment: searchTerm ? (
+                  endAdornment: searchInput ? (
                     <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => { setSearchTerm(''); setPage(0); }}>
+                      <IconButton size="small" onClick={() => { setSearchInput(''); setSearchTerm(''); setPage(0); }}>
                         <X size={16} />
                       </IconButton>
                     </InputAdornment>
@@ -1637,7 +1636,7 @@ const OrdersManagement = () => {
                     <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>
                       {order.delivered_at ? new Date(order.delivered_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '−'}
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>${Number(order.total).toLocaleString('es-ES')}</TableCell>
+                    <TableCell sx={{ fontWeight: 500, display: { xs: 'none', md: 'table-cell' } }}>{formatMoney(order.total)}</TableCell>
                     {/* Envío column */}
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                       <Chip
@@ -1685,7 +1684,7 @@ const OrdersManagement = () => {
                     </TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                       <Typography variant="body2" sx={{ fontWeight: 800, color: 'success.main' }}>
-                        +${calcOrderProfit(order).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                        +{formatMoney(calcOrderProfit(order))}
                       </Typography>
                     </TableCell>
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
@@ -1727,13 +1726,13 @@ const OrdersManagement = () => {
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Total</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                ${Number(order.total).toLocaleString('es-ES')}
+                                {formatMoney(order.total)}
                               </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem' }}>Ganancia</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 800, color: 'success.main' }}>
-                                +${calcOrderProfit(order).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                                +{formatMoney(calcOrderProfit(order))}
                               </Typography>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -2087,7 +2086,7 @@ const OrdersManagement = () => {
                         {item.quantity}x {item.name}
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        ${(item.price * item.quantity).toLocaleString('es-ES')}
+                        {formatMoney(item.price * item.quantity)}
                       </Typography>
                     </Box>
                   ))
@@ -2102,13 +2101,13 @@ const OrdersManagement = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Total</Typography>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>
-                ${Number(selectedOrder?.total).toLocaleString('es-ES')}
+                {formatMoney(selectedOrder?.total)}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.secondary' }}>Ganancia</Typography>
               <Typography variant="h6" sx={{ fontWeight: 800, color: 'success.main' }}>
-                +${selectedOrder ? calcOrderProfit(selectedOrder).toLocaleString('es-ES', { maximumFractionDigits: 0 }) : 0}
+                +{formatMoney(selectedOrder ? calcOrderProfit(selectedOrder) : 0)}
               </Typography>
             </Box>
           </Stack>
